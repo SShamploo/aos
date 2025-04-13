@@ -47,4 +47,6 @@ async def hcavailabilityscheduler(ctx):
             await message.add_reaction(emoji)
 
 # Run the bot with your token from an environment variable
-bot.run(os.getenv("DISCORD_TOKEN"))
+import os
+bot.run(os.getenv("TOKEN"))
+
