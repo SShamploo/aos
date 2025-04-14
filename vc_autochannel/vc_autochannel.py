@@ -5,14 +5,13 @@ import asyncio
 
 CATEGORY_ID = 1360145897857482792
 BASE_CHANNEL_NAME = "Join-To-Create-Voice-Chat"
-CUSTOM_CHANNEL_NAME = "User Channel"
 INACTIVITY_SECONDS = 300  # 5 minutes
 
 class VoiceChannelManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_channels = {}     # {channel_id: asyncio.Task}
-        self.assigned_users = set()   # Track users already moved to prevent duplication
+        self.user_channels = {}       # {user_id: channel_id}
 
     @app_commands.command(name="createautovoice", description="Create the Join-To-Create-Voice-Chat channel")
     async def createautovoice(self, interaction: discord.Interaction):
@@ -29,37 +28,40 @@ class VoiceChannelManager(commands.Cog):
             return
 
         vc = await guild.create_voice_channel(BASE_CHANNEL_NAME, category=category)
-        await interaction.response.send_message(f"✅ Created voice channel: {vc.mention}", ephemeral=True)
+        await interaction.response.send_message(f"✅ Created base voice channel: {vc.mention}", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # ✅ Prevent double creation by tracking already moved users
+        # Ignore if user already has an active channel
+        if member.id in self.user_channels:
+            return
+
+        # When user joins the base VC
         if (
             after.channel
             and after.channel.name == BASE_CHANNEL_NAME
-            and member.id not in self.assigned_users
+            and (not before.channel or before.channel.id != after.channel.id)
         ):
             category = member.guild.get_channel(CATEGORY_ID)
             if not category:
                 return
 
-            # Create channel and move user
-            new_channel = await member.guild.create_voice_channel(CUSTOM_CHANNEL_NAME, category=category)
+            display_name = member.display_name[:25]
+            channel_name = f"{display_name}'s Channel"
+
+            new_channel = await member.guild.create_voice_channel(name=channel_name, category=category)
             await member.move_to(new_channel)
 
-            # Track this user to avoid duplication
-            self.assigned_users.add(member.id)
-
-            # Start cleanup timer
+            self.user_channels[member.id] = new_channel.id
             self.start_deletion_timer(new_channel)
 
-        # ✅ Start deletion timer when leaving a custom channel
+        # Start deletion timer when someone leaves their personal VC
         if before.channel and before.channel.id in self.active_channels:
             self.start_deletion_timer(before.channel)
 
-        # ✅ Reset tracking if user leaves all voice channels
-        if not after.channel and member.id in self.assigned_users:
-            self.assigned_users.remove(member.id)
+        # Cleanup if user leaves all VCs
+        if not after.channel and member.id in self.user_channels:
+            self.user_channels.pop(member.id, None)
 
     def start_deletion_timer(self, channel):
         async def delete_if_empty():
@@ -68,10 +70,14 @@ class VoiceChannelManager(commands.Cog):
                 try:
                     await channel.delete()
                     self.active_channels.pop(channel.id, None)
+
+                    # Remove from user tracking
+                    for uid, cid in list(self.user_channels.items()):
+                        if cid == channel.id:
+                            self.user_channels.pop(uid)
                 except Exception:
                     pass
 
-        # Cancel previous task if exists
         if channel.id in self.active_channels:
             self.active_channels[channel.id].cancel()
 
