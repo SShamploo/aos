@@ -2,12 +2,12 @@ import discord
 from discord.ext import commands
 
 class MatchReportModal(discord.ui.Modal, title="Match Report Form"):
-    match_type = discord.ui.TextInput(label="Match Type")
-    league = discord.ui.TextInput(label="League")
-    enemy_team = discord.ui.TextInput(label="Enemy Team")
-    map_played = discord.ui.TextInput(label="Map")
-    win_loss = discord.ui.TextInput(label="W/L", placeholder="Win or Loss")
-    final_score = discord.ui.TextInput(label="Final Score", placeholder="e.g. 13-9")
+    match_type: discord.ui.TextInput = discord.ui.TextInput(label="Match Type")
+    league: discord.ui.TextInput = discord.ui.TextInput(label="League")
+    enemy_team: discord.ui.TextInput = discord.ui.TextInput(label="Enemy Team")
+    map_played: discord.ui.TextInput = discord.ui.TextInput(label="Map")
+    win_loss: discord.ui.TextInput = discord.ui.TextInput(label="W/L", placeholder="Win or Loss")
+    final_score: discord.ui.TextInput = discord.ui.TextInput(label="Final Score", placeholder="e.g. 13-9")
 
     async def on_submit(self, interaction: discord.Interaction):
         embed = discord.Embed(title="📊 Match Report", color=discord.Color.blurple())
@@ -27,14 +27,13 @@ class MatchReportModal(discord.ui.Modal, title="Match Report Form"):
             await interaction.response.send_message("❌ 'results' channel not found.", ephemeral=True)
 
 class MatchResults(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     @commands.command(name="results")
-    async def results(self, ctx):
+    async def results_command(self, ctx: commands.Context):
         await ctx.send_modal(MatchReportModal())
 
-# ✅ FINAL FIX — async setup and await add_cog
-async def setup(bot):
+# ✅ Proper async setup function for discord.py v2+
+async def setup(bot: commands.Bot):
     await bot.add_cog(MatchResults(bot))
-
