@@ -24,7 +24,8 @@ initial_extensions = [
     "HCScheduler.hcavailabilityscheduler",
     "Results.results",
     "ticketsystem.tickets",
-    "activitylog.logging"  # ✅ Log every event to a specific channel
+    "activitylog.logging",
+    "levels.xp"  # ✅ Log every event to a specific channel
 ]
 
 # Load each cog
