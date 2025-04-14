@@ -7,7 +7,7 @@ class HCAvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="hcavailabilityscheduler")  # ✅ This registers the !hcavailabilityscheduler command
+    @commands.command(name="hcavailabilityscheduler")
     async def hcavailabilityscheduler(self, ctx):
         emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12PM"]
         emojis = []
@@ -32,7 +32,6 @@ class HCAvailabilityScheduler(commands.Cog):
             for emoji in emojis:
                 await message.add_reaction(emoji)
 
-# ✅ Required setup() function
-def setup(bot):
-    bot.add_cog(HCAvailabilityScheduler(bot))
-
+# ✅ Updated async setup() for discord.py v2+
+async def setup(bot):
+    await bot.add_cog(HCAvailabilityScheduler(bot))
