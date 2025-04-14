@@ -34,6 +34,7 @@ class MatchResults(commands.Cog):
     async def results(self, ctx):
         await ctx.send_modal(MatchReportModal())
 
-# ✅ Updated for discord.py v2+
+# ✅ FINAL FIX — async setup and await add_cog
 async def setup(bot):
     await bot.add_cog(MatchResults(bot))
+
