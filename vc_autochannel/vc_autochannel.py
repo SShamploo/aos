@@ -5,7 +5,7 @@ import asyncio
 
 CATEGORY_ID = 1360145897857482792
 BASE_CHANNEL_NAME = "Join-To-Create-Voice-Chat"
-INACTIVITY_SECONDS = 300  # 5 minutes
+INACTIVITY_SECONDS = 30  # 5 minutes
 
 class VoiceChannelManager(commands.Cog):
     def __init__(self, bot):
