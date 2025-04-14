@@ -3,23 +3,23 @@ from discord.ext import commands
 import os
 from dotenv import load_dotenv
 
-# Load environment variables (for bot token, etc.)
+# Load environment variables from .env
 load_dotenv()
 
 # Set up bot intents
 intents = discord.Intents.default()
-intents.message_content = True  # Needed if using message commands
+intents.message_content = True
 
 # Create bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# List of scripts to load (use folder.filename, no ".py")
+# List of command scripts to load (folder.filename)
 initial_extensions = [
-    "HCScheduler.scheduler",     # File: HCScheduler/scheduler.py
-    "Results.match_results"      # File: Results/match_results.py
+    "HCScheduler.scheduler",     # e.g., HCScheduler/scheduler.py
+    "Results.match_results"      # e.g., Results/match_results.py
 ]
 
-# Load all command modules
+# Load extensions
 for ext in initial_extensions:
     try:
         bot.load_extension(ext)
@@ -31,5 +31,6 @@ for ext in initial_extensions:
 async def on_ready():
     print(f"🤖 Bot is online as {bot.user.name}")
 
-# Run bot with token from .env file
-bot.run(os.getenv("DISCORD_TOKEN"))
+# Use TOKEN environment variable (your bot token)
+bot.run(os.getenv("TOKEN"))
+
