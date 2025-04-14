@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 class HCAvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.sent_messages = {}  # {channel_id: [message_ids]}
 
     @app_commands.command(name="hcavailabilityscheduler", description="Post availability days and add time emojis")
     async def hcavailabilityscheduler(self, interaction: discord.Interaction):
@@ -26,6 +27,10 @@ class HCAvailabilityScheduler(commands.Cog):
         sunday = today - timedelta(days=days_since_sunday)
 
         await interaction.response.send_message("📅 Weekly Availability:", ephemeral=False)
+
+        # Store messages to delete later
+        self.sent_messages[interaction.channel.id] = []
+
         for i in range(7):
             current_day = sunday + timedelta(days=i)
             day_name = current_day.strftime("%A")
@@ -33,7 +38,26 @@ class HCAvailabilityScheduler(commands.Cog):
             message = await interaction.channel.send(f"{day_name} {date_str}")
             for emoji in emojis:
                 await message.add_reaction(emoji)
+            self.sent_messages[interaction.channel.id].append(message.id)
 
-# Required async setup function for loading the cog
+    @app_commands.command(name="deletehcavailability", description="Delete availability messages created by the bot.")
+    async def deletehcavailability(self, interaction: discord.Interaction):
+        channel_id = interaction.channel.id
+        deleted = 0
+
+        if channel_id in self.sent_messages:
+            for msg_id in self.sent_messages[channel_id]:
+                try:
+                    msg = await interaction.channel.fetch_message(msg_id)
+                    await msg.delete()
+                    deleted += 1
+                except discord.NotFound:
+                    continue
+            self.sent_messages[channel_id] = []  # Clear after deletion
+            await interaction.response.send_message(f"🗑️ Deleted {deleted} availability messages.", ephemeral=True)
+        else:
+            await interaction.response.send_message("⚠️ No availability messages found to delete in this channel.", ephemeral=True)
+
+# Required setup function
 async def setup(bot):
     await bot.add_cog(HCAvailabilityScheduler(bot))
