@@ -3,19 +3,25 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import json
+import base64
 import gspread
+from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
 class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Setup Google Sheets API using credentials from Render environment variable
+        # Load environment variables from the .env file (Render mounts this)
+        load_dotenv()
+
+        # Setup Google Sheets API using base64-decoded credentials
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_json = json.loads(os.getenv("GOOGLE_SHEETS_CREDS"))
+        creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
+        creds_json = json.loads(base64.b64decode(creds_b64).decode())
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
-        self.sheet = self.client.open("MatchReports").sheet1  # Make sure this sheet name matches exactly
+        self.sheet = self.client.open("MatchReports").sheet1  # Ensure this matches your sheet name
 
     @app_commands.command(name="results", description="Submit a match report")
     @app_commands.describe(
