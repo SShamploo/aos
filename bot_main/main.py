@@ -13,10 +13,10 @@ intents.message_content = True
 # Create bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Load your scripts (folder.filename — no .py)
+# Load your scripts using folder.filename (no .py)
 initial_extensions = [
-    "HCScheduler.hcavailabilityscheduler",  # HCScheduler/hcavailabilityscheduler.py
-    "Results.results"                       # Results/results.py
+    "HCScheduler.hcavailabilityscheduler",  # ✅ HCScheduler/hcavailabilityscheduler.py
+    "Results.results"                       # ✅ Results/results.py
 ]
 
 # Load each extension
@@ -33,3 +33,4 @@ async def on_ready():
 
 # Run bot with TOKEN from .env
 bot.run(os.getenv("TOKEN"))
+
