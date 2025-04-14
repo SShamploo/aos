@@ -1,15 +1,6 @@
-import os
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
-load_dotenv()
-TOKEN = os.getenv("TOKEN")
-
-intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Modal form
 class MatchReportModal(discord.ui.Modal, title="Match Report Form"):
     match_type = discord.ui.TextInput(label="Match Type")
     league = discord.ui.TextInput(label="League")
@@ -35,22 +26,13 @@ class MatchReportModal(discord.ui.Modal, title="Match Report Form"):
         else:
             await interaction.response.send_message("❌ 'results' channel not found.", ephemeral=True)
 
-# This uses a traditional text command
-@bot.command(name="results")
-async def results(ctx):
-    # Convert the message context into an interaction for the modal
-    class FakeInteraction(discord.Interaction):
-        def __init__(self, ctx):
-            self.user = ctx.author
-            self.guild = ctx.guild
-            self.channel = ctx.channel
-            self.response = ctx.interaction.response if hasattr(ctx, "interaction") else None
+class MatchResults(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
 
-    await ctx.send_modal(MatchReportModal())
+    @commands.command(name="results")
+    async def results(self, ctx):
+        await ctx.send_modal(MatchReportModal())
 
-# Log when the bot is ready
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
-
-bot.run(TOKEN)
+def setup(bot):
+    bot.add_cog(MatchResults(bot))
