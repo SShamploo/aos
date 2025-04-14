@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import asyncio
 
 CATEGORY_ID = 1360145897857482792
@@ -11,21 +12,39 @@ class VoiceChannelManager(commands.Cog):
         self.bot = bot
         self.active_channels = {}  # {channel_id: task}
 
+    # Slash command to create the base voice channel
+    @app_commands.command(name="createautovoice", description="Create the Join-To-Create-Voice-Chat channel")
+    async def createautovoice(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        category = guild.get_channel(CATEGORY_ID)
+
+        if not category or not isinstance(category, discord.CategoryChannel):
+            await interaction.response.send_message("❌ Invalid category ID or category not found.", ephemeral=True)
+            return
+
+        existing = discord.utils.get(guild.voice_channels, name=BASE_CHANNEL_NAME)
+        if existing:
+            await interaction.response.send_message("⚠️ Base channel already exists.", ephemeral=True)
+            return
+
+        vc = await guild.create_voice_channel(BASE_CHANNEL_NAME, category=category)
+        await interaction.response.send_message(f"✅ Created voice channel: {vc.mention}", ephemeral=True)
+
+    # Listen for when a user joins or leaves a voice channel
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # If user joins the base channel
+        # User joins the base channel
         if after.channel and after.channel.name == BASE_CHANNEL_NAME:
             category = member.guild.get_channel(CATEGORY_ID)
             if not category:
                 return
 
-            # Create a channel with user's display name
             vc_name = f"Voice - {member.display_name[:25]}"
             new_channel = await member.guild.create_voice_channel(name=vc_name, category=category)
             await member.move_to(new_channel)
             self.start_deletion_timer(new_channel)
 
-        # If user leaves their custom voice channel
+        # User leaves their custom voice channel
         if before.channel and before.channel.id in self.active_channels:
             self.start_deletion_timer(before.channel)
 
@@ -44,21 +63,6 @@ class VoiceChannelManager(commands.Cog):
 
         task = asyncio.create_task(delete_if_empty())
         self.active_channels[channel.id] = task
-
-    @commands.command(name="createautovoice")
-    async def create_base_channel(self, ctx):
-        """Manually creates the Join-To-Create voice channel."""
-        guild = ctx.guild
-        category = guild.get_channel(CATEGORY_ID)
-        if not category or not isinstance(category, discord.CategoryChannel):
-            return await ctx.send("❌ Invalid category ID.")
-
-        existing = discord.utils.get(guild.voice_channels, name=BASE_CHANNEL_NAME)
-        if existing:
-            return await ctx.send("⚠️ Channel already exists.")
-
-        vc = await guild.create_voice_channel(BASE_CHANNEL_NAME, category=category)
-        await ctx.send(f"✅ Created voice channel: {vc.mention}")
 
 # Required setup
 async def setup(bot):
