@@ -11,7 +11,8 @@ CHANNEL_PREFIX = "Bitch #"
 class VoiceChannelManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.active_channels = {}  # {channel_id: asyncio.Task}
+        self.active_channels = {}         # {channel_id: task}
+        self.created_for_user = {}        # {user_id: channel_id}
 
     @app_commands.command(name="createautovoice", description="Create the Join-To-Create-Voice-Chat channel")
     async def createautovoice(self, interaction: discord.Interaction):
@@ -32,7 +33,13 @@ class VoiceChannelManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # Only trigger when joining the base channel
+        # Exit if moved into a custom channel the bot already created
+        if member.id in self.created_for_user:
+            tracked_channel = self.created_for_user[member.id]
+            if after.channel and after.channel.id == tracked_channel:
+                return
+
+        # User joined the base channel (not moving between VCs)
         if (
             after.channel
             and after.channel.name == BASE_CHANNEL_NAME
@@ -42,15 +49,17 @@ class VoiceChannelManager(commands.Cog):
             if not category:
                 return
 
-            # Count how many "Bitch #" channels already exist
+            # Count existing channels named Bitch #
             count = sum(1 for ch in category.voice_channels if ch.name.startswith(CHANNEL_PREFIX))
             channel_name = f"{CHANNEL_PREFIX}{count + 1}"
 
             new_channel = await member.guild.create_voice_channel(name=channel_name, category=category)
             await member.move_to(new_channel)
+
+            self.created_for_user[member.id] = new_channel.id
             self.start_deletion_timer(new_channel)
 
-        # Start a timer to delete empty custom channels
+        # User left a bot-created voice channel
         if before.channel and before.channel.id in self.active_channels:
             self.start_deletion_timer(before.channel)
 
@@ -61,10 +70,13 @@ class VoiceChannelManager(commands.Cog):
                 try:
                     await channel.delete()
                     self.active_channels.pop(channel.id, None)
+
+                    # Remove users who were linked to this channel
+                    self.created_for_user = {k: v for k, v in self.created_for_user.items() if v != channel.id}
                 except Exception:
                     pass
 
-        # Cancel any existing timer
+        # Cancel previous timer if exists
         if channel.id in self.active_channels:
             self.active_channels[channel.id].cancel()
 
