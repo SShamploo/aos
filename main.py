@@ -7,20 +7,24 @@ from dotenv import load_dotenv
 import traceback
 import asyncio
 
-# Load environment variables from .env or Render
+# Load environment variables from .env or Render dashboard
 load_dotenv()
 
-# Set up bot intents (minimal needed for slash-only bots)
+# Set up bot intents for full logging support
 intents = discord.Intents.default()
+intents.message_content = True  # ✅ Required for message tracking (send/edit/delete)
+intents.members = True          # ✅ Required for member join/leave/nickname updates
+intents.guilds = True           # ✅ Required for channel/role updates
 
-# Create bot instance with no command prefix (slash-only)
+# Create bot instance with no prefix (slash commands only)
 bot = commands.Bot(command_prefix=None, intents=intents)
 
 # List of cog modules to load (match folders/filenames)
 initial_extensions = [
     "HCScheduler.hcavailabilityscheduler",
     "Results.results",
-    "ticketsystem.tickets"  # ✅ newly added ticket system
+    "ticketsystem.tickets",
+    "activitylog.logging"  # ✅ Log every event to a specific channel
 ]
 
 # Load each cog
@@ -33,7 +37,7 @@ async def load_cogs():
             print(f"❌ Failed to load {ext}: {e}")
             traceback.print_exc()
 
-# Sync slash commands globally on bot ready
+# Sync slash commands globally on ready
 @bot.event
 async def on_ready():
     print(f"🤖 Bot is online as {bot.user.name}")
@@ -44,7 +48,7 @@ async def on_ready():
         print(f"❌ Failed to sync slash commands: {e}")
         traceback.print_exc()
 
-# Run the bot
+# Main function to start bot
 async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
