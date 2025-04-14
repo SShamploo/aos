@@ -12,18 +12,18 @@ load_dotenv()
 
 # Set up bot intents
 intents = discord.Intents.default()
-intents.message_content = True
+# You can now omit message_content if you're only using slash commands
 
-# Create bot instance
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Create bot instance (no command prefix needed)
+bot = commands.Bot(command_prefix=None, intents=intents)
 
 # List of cog modules to load
 initial_extensions = [
-    "HCScheduler.hcavailabilityscheduler",  # ✅ HCScheduler/hcavailabilityscheduler.py
-    "Results.results"                       # ✅ Results/results.py
+    "HCScheduler.hcavailabilityscheduler",
+    "Results.results"
 ]
 
-# ✅ Async loader for discord.py v2+
+# Async loader for slash-compatible cogs
 async def load_cogs():
     for ext in initial_extensions:
         try:
@@ -36,11 +36,17 @@ async def load_cogs():
 @bot.event
 async def on_ready():
     print(f"🤖 Bot is online as {bot.user.name}")
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ Synced {len(synced)} slash command(s)")
+    except Exception as e:
+        print(f"❌ Failed to sync slash commands: {e}")
+        traceback.print_exc()
 
-# ✅ Load cogs before running the bot
+# Main entry to load and run the bot
 async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# Start the async main
 asyncio.run(main())
+
