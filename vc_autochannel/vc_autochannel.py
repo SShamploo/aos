@@ -5,7 +5,7 @@ import asyncio
 
 CATEGORY_ID = 1360145897857482792
 BASE_CHANNEL_NAME = "Join-To-Create-Voice-Chat"
-INACTIVITY_SECONDS = 30  # 5 minutes
+INACTIVITY_SECONDS = 30  # Auto-delete after 30 seconds
 
 class VoiceChannelManager(commands.Cog):
     def __init__(self, bot):
@@ -55,13 +55,9 @@ class VoiceChannelManager(commands.Cog):
             self.user_channels[member.id] = new_channel.id
             self.start_deletion_timer(new_channel)
 
-        # Start deletion timer when someone leaves their personal VC
+        # Restart deletion timer when user leaves a custom VC
         if before.channel and before.channel.id in self.active_channels:
             self.start_deletion_timer(before.channel)
-
-        # Cleanup if user leaves all VCs
-        if not after.channel and member.id in self.user_channels:
-            self.user_channels.pop(member.id, None)
 
     def start_deletion_timer(self, channel):
         async def delete_if_empty():
@@ -69,15 +65,17 @@ class VoiceChannelManager(commands.Cog):
             if len(channel.members) == 0:
                 try:
                     await channel.delete()
-                    self.active_channels.pop(channel.id, None)
-
-                    # Remove from user tracking
-                    for uid, cid in list(self.user_channels.items()):
-                        if cid == channel.id:
-                            self.user_channels.pop(uid)
                 except Exception:
                     pass
+                finally:
+                    self.active_channels.pop(channel.id, None)
 
+                    # ✅ Remove any user linked to this channel
+                    for user_id, chan_id in list(self.user_channels.items()):
+                        if chan_id == channel.id:
+                            self.user_channels.pop(user_id)
+
+        # Cancel previous timer if it exists
         if channel.id in self.active_channels:
             self.active_channels[channel.id].cancel()
 
