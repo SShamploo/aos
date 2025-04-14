@@ -7,12 +7,8 @@ class HCAvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name='hcavailabilityscheduler')
+    @commands.command(name="hcavailabilityscheduler")  # ✅ This registers the !hcavailabilityscheduler command
     async def hcavailabilityscheduler(self, ctx):
-        """
-        Sends each day of the current week (Sunday to Saturday) with corresponding dates,
-        and reacts to each message with the specified custom emojis.
-        """
         emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12PM"]
         emojis = []
 
@@ -36,6 +32,7 @@ class HCAvailabilityScheduler(commands.Cog):
             for emoji in emojis:
                 await message.add_reaction(emoji)
 
-# Required setup function for cogs
+# ✅ Required setup() function
 def setup(bot):
     bot.add_cog(HCAvailabilityScheduler(bot))
+
