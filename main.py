@@ -1,5 +1,12 @@
 print("👋 main.py is running...")
 
+raise SystemExit("🚨 Forced stop: Verifying if main.py is even executing")
+
+import discord
+from discord.ext import commands
+
+print("👋 main.py is running...")
+
 import discord
 from discord.ext import commands
 import os
