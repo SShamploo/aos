@@ -25,7 +25,8 @@ initial_extensions = [
     "Results.results",
     "ticketsystem.tickets",
     "activitylog.logging",
-    "levels.xp"  # ✅ Log every event to a specific channel
+    "levels.xp",
+    "vc_autochannel.vc_autochannel"  # ✅ Log every event to a specific channel
 ]
 
 # Load each cog
