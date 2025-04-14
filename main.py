@@ -12,9 +12,9 @@ load_dotenv()
 
 # Set up bot intents for full logging support
 intents = discord.Intents.default()
-intents.message_content = True  # ✅ Required for message tracking (send/edit/delete)
-intents.members = True          # ✅ Required for member join/leave/nickname updates
-intents.guilds = True           # ✅ Required for channel/role updates
+intents.message_content = True
+intents.members = True
+intents.guilds = True
 
 # Create bot instance with no prefix (slash commands only)
 bot = commands.Bot(command_prefix=None, intents=intents)
@@ -39,13 +39,14 @@ async def load_cogs():
             print(f"❌ Failed to load {ext}: {e}")
             traceback.print_exc()
 
-# Sync slash commands globally on ready
+# Sync and clear ghost commands on ready
 @bot.event
 async def on_ready():
     print(f"🤖 Bot is online as {bot.user.name}")
     try:
-        synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} slash command(s)")
+        # Sync commands globally and remove ghost/unused ones
+        synced = await bot.tree.sync(guild=None)
+        print(f"✅ Synced {len(synced)} global slash command(s)")
     except Exception as e:
         print(f"❌ Failed to sync slash commands: {e}")
         traceback.print_exc()
