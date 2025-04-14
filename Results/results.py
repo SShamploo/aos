@@ -25,7 +25,7 @@ class MatchResults(commands.Cog):
 
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
-        self.sheet = self.client.open("MatchReports").sheet1  # Ensure this matches your sheet name
+        self.sheet = self.client.open("AOS").worksheet("matchresults")  # ✅ UPDATED
 
     @app_commands.command(name="results", description="Submit a match report")
     @app_commands.describe(
