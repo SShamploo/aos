@@ -13,13 +13,13 @@ intents.message_content = True
 # Create bot instance
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# List of command scripts to load (folder.filename)
+# Load your scripts (folder.filename — no .py)
 initial_extensions = [
-    "HCScheduler.scheduler",     # e.g., HCScheduler/scheduler.py
-    "Results.match_results"      # e.g., Results/match_results.py
+    "HCScheduler.hcavailabilityscheduler",  # HCScheduler/hcavailabilityscheduler.py
+    "Results.results"                       # Results/results.py
 ]
 
-# Load extensions
+# Load each extension
 for ext in initial_extensions:
     try:
         bot.load_extension(ext)
@@ -31,6 +31,6 @@ for ext in initial_extensions:
 async def on_ready():
     print(f"🤖 Bot is online as {bot.user.name}")
 
-# Use TOKEN environment variable (your bot token)
+# Run bot with TOKEN from .env
 bot.run(os.getenv("TOKEN"))
 
