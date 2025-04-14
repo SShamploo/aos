@@ -6,13 +6,13 @@ import asyncio
 CATEGORY_ID = 1360145897857482792
 BASE_CHANNEL_NAME = "Join-To-Create-Voice-Chat"
 INACTIVITY_SECONDS = 300  # 5 minutes
+CHANNEL_PREFIX = "Bitch #"
 
 class VoiceChannelManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.active_channels = {}  # {channel_id: task}
+        self.active_channels = {}  # {channel_id: asyncio.Task}
 
-    # Slash command to create the base voice channel
     @app_commands.command(name="createautovoice", description="Create the Join-To-Create-Voice-Chat channel")
     async def createautovoice(self, interaction: discord.Interaction):
         guild = interaction.guild
@@ -30,21 +30,27 @@ class VoiceChannelManager(commands.Cog):
         vc = await guild.create_voice_channel(BASE_CHANNEL_NAME, category=category)
         await interaction.response.send_message(f"✅ Created voice channel: {vc.mention}", ephemeral=True)
 
-    # Listen for when a user joins or leaves a voice channel
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # User joins the base channel
-        if after.channel and after.channel.name == BASE_CHANNEL_NAME:
+        # Only trigger when joining the base channel
+        if (
+            after.channel
+            and after.channel.name == BASE_CHANNEL_NAME
+            and (not before.channel or before.channel.id != after.channel.id)
+        ):
             category = member.guild.get_channel(CATEGORY_ID)
             if not category:
                 return
 
-            vc_name = f"Voice - {member.display_name[:25]}"
-            new_channel = await member.guild.create_voice_channel(name=vc_name, category=category)
+            # Count how many "Bitch #" channels already exist
+            count = sum(1 for ch in category.voice_channels if ch.name.startswith(CHANNEL_PREFIX))
+            channel_name = f"{CHANNEL_PREFIX}{count + 1}"
+
+            new_channel = await member.guild.create_voice_channel(name=channel_name, category=category)
             await member.move_to(new_channel)
             self.start_deletion_timer(new_channel)
 
-        # User leaves their custom voice channel
+        # Start a timer to delete empty custom channels
         if before.channel and before.channel.id in self.active_channels:
             self.start_deletion_timer(before.channel)
 
@@ -58,6 +64,7 @@ class VoiceChannelManager(commands.Cog):
                 except Exception:
                     pass
 
+        # Cancel any existing timer
         if channel.id in self.active_channels:
             self.active_channels[channel.id].cancel()
 
