@@ -18,7 +18,11 @@ class MatchResults(commands.Cog):
         # Setup Google Sheets API using base64-decoded credentials
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
-        creds_json = json.loads(base64.b64decode(creds_b64).decode())
+
+        # ✅ FIX: safe decoding logic
+        creds_bytes = base64.b64decode(creds_b64.encode("utf-8"))
+        creds_json = json.loads(creds_bytes.decode("utf-8"))
+
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("MatchReports").sheet1  # Ensure this matches your sheet name
