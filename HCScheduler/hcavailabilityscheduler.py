@@ -28,7 +28,6 @@ class HCAvailabilityScheduler(commands.Cog):
 
         await interaction.response.send_message("📅 Weekly Availability:", ephemeral=False)
 
-        # Store messages to delete later
         self.sent_messages[interaction.channel.id] = []
 
         for i in range(7):
@@ -42,6 +41,7 @@ class HCAvailabilityScheduler(commands.Cog):
 
     @app_commands.command(name="deletehcavailability", description="Delete availability messages created by the bot.")
     async def deletehcavailability(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)  # Prevents timeout
         channel_id = interaction.channel.id
         deleted = 0
 
@@ -53,10 +53,15 @@ class HCAvailabilityScheduler(commands.Cog):
                     deleted += 1
                 except discord.NotFound:
                     continue
-            self.sent_messages[channel_id] = []  # Clear after deletion
-            await interaction.response.send_message(f"🗑️ Deleted {deleted} availability messages.", ephemeral=True)
+                except discord.Forbidden:
+                    print(f"❌ Cannot delete message {msg_id} - missing permissions.")
+                except Exception as e:
+                    print(f"⚠️ Failed to delete message {msg_id}: {e}")
+
+            self.sent_messages[channel_id] = []  # Clear cache
+            await interaction.followup.send(f"🗑️ Deleted {deleted} availability message(s).", ephemeral=True)
         else:
-            await interaction.response.send_message("⚠️ No availability messages found to delete in this channel.", ephemeral=True)
+            await interaction.followup.send("⚠️ No availability messages found to delete in this channel.", ephemeral=True)
 
 # Required setup function
 async def setup(bot):
