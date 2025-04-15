@@ -29,7 +29,8 @@ initial_extensions = [
     "activitylog.logging",
     "levels.xp",
     "vc_autochannel.vc_autochannel",
-    "playerinfo.playerinformation"  # ✅ NEW: Player Info Cog
+    "playerinfo.playerinformation",
+    "matchscheduler.matchscheduler"  # ✅ NEW: Schedule Match Cog
 ]
 
 async def load_cogs():
