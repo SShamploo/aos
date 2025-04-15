@@ -51,7 +51,7 @@ class PlayerInfoButton(discord.ui.View):
         super().__init__(timeout=None)
         self.sheet = sheet
 
-    @discord.ui.button(label="⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.danger)
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerInfoModal(self.sheet))
 
@@ -65,20 +65,22 @@ class PlayerInformation(commands.Cog):
         creds_json = json.loads(creds)
         self.client = gspread.authorize(ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope))
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
-        self.last_prompt_id = None
+        self.last_prompt_ids = []  # Stores both image + button message IDs
 
     @app_commands.command(name="playerinfoprompt", description="Post the player info submission image + button.")
     async def playerinfoprompt(self, interaction: discord.Interaction):
         channel = interaction.channel
 
-        if self.last_prompt_id:
+        # Delete previous prompt (image + button)
+        for msg_id in self.last_prompt_ids:
             try:
-                prev = await channel.fetch_message(self.last_prompt_id)
-                await prev.delete()
+                msg = await channel.fetch_message(msg_id)
+                await msg.delete()
             except:
-                pass
+                continue
+        self.last_prompt_ids = []
 
-        # Send local image file (must exist in same folder)
+        # Send image
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
         image_msg = await channel.send(file=file)
@@ -86,7 +88,7 @@ class PlayerInformation(commands.Cog):
         # Send button
         button_msg = await channel.send(view=PlayerInfoButton(self.sheet))
 
-        self.last_prompt_id = image_msg.id
+        self.last_prompt_ids = [image_msg.id, button_msg.id]
         await interaction.response.send_message("✅ Prompt sent.", ephemeral=True)
 
 async def setup(bot):
