@@ -8,7 +8,7 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
-class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
+class PlayerInfoModal(discord.ui.Modal, title="Fill out your information"):
     def __init__(self, sheet):
         super().__init__()
         self.sheet = sheet
@@ -52,7 +52,7 @@ class PlayerInfoButton(discord.ui.View):
         self.sheet = sheet
 
     @discord.ui.button(
-        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         style=discord.ButtonStyle.danger,
         custom_id="player_info_button"  # Persistent view binding
     )
