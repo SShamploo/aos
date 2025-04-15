@@ -17,7 +17,7 @@ LEAGUE_TABS = {
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.sent_messages = {"HC": {}, "AL": {}}  # league -> {channel_id: {message_id: message_text}}
+        self.sent_messages = {"HC": {}, "AL": {}}  # league → {channel_id: {message_id: message_text}}
 
         # Google Sheets setup
         load_dotenv()
@@ -27,17 +27,14 @@ class AvailabilityScheduler(commands.Cog):
         self.gc = gspread.authorize(creds)
         self.sheet = self.gc.open("AOS")
 
-    # ---------- SLASH: /sendavailability ----------
     @app_commands.command(name="sendavailability", description="Send availability message (HC/AL)")
     async def sendavailability(self, interaction: discord.Interaction):
         await interaction.response.send_message("Select a League:", view=LeagueSelectView(self, "send"), ephemeral=True)
 
-    # ---------- SLASH: /deleteavailability ----------
     @app_commands.command(name="deleteavailability", description="Delete availability (HC/AL)")
     async def deleteavailability(self, interaction: discord.Interaction):
         await interaction.response.send_message("Select a League to delete:", view=LeagueSelectView(self, "delete"), ephemeral=True)
 
-    # ---------- SLASH: /availability ----------
     @app_commands.command(name="availability", description="View availability by league and day")
     async def availability(self, interaction: discord.Interaction):
         await interaction.response.send_message("Select a League to view:", view=LeagueSelectView(self, "view"), ephemeral=True)
@@ -103,7 +100,6 @@ class AvailabilityScheduler(commands.Cog):
             await interaction.followup.send(f"⚠️ No data found for {league} - {day}.", ephemeral=True)
             return
 
-        # Emoji order
         order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         result = f"**{day.upper()}**\n"
         users = {}
@@ -139,6 +135,7 @@ class LeagueSelectView(discord.ui.View):
         ]
     )
     async def select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        await interaction.response.defer()
         league = select.values[0]
         if self.action == "send":
             await self.cog.handle_send(interaction, league)
@@ -160,6 +157,7 @@ class DaySelectView(discord.ui.View):
                  ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]]
     )
     async def select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        await interaction.response.defer()
         day = select.values[0]
         await self.cog.post_day_summary(interaction, self.league, day)
 
