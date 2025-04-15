@@ -28,7 +28,8 @@ initial_extensions = [
     "ticketsystem.tickets",
     "activitylog.logging",
     "levels.xp",
-    "vc_autochannel.vc_autochannel"
+    "vc_autochannel.vc_autochannel",
+    "playerinfo.playerinformation"  # ✅ NEW: Player Info Cog
 ]
 
 async def load_cogs():
@@ -54,17 +55,17 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ FINAL Combined Reaction ADD Handler (for both HC + AL)
+# ✅ Combined Reaction ADD Handler (for HC + AL only)
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="add")
 
-# ✅ FINAL Combined Reaction REMOVE Handler (for both HC + AL)
+# ✅ Combined Reaction REMOVE Handler (for HC + AL only)
 @bot.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="remove")
 
-# 🔁 Shared logic for add/remove
+# 🔁 Shared logic for HC/AL availability tracking only
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -77,7 +78,6 @@ async def handle_reaction_event(payload, event_type: str):
     if not member or member.bot:
         return
 
-    # ✅ Loop over both cogs
     for cog_name in ["HCAvailabilityScheduler", "ALAvailabilityScheduler"]:
         cog = bot.get_cog(cog_name)
         if not cog:
@@ -90,7 +90,7 @@ async def handle_reaction_event(payload, event_type: str):
         message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
 
         if not message_text:
-            continue  # Not one of this cog's tracked messages
+            continue
 
         try:
             sheet = cog.sheet
@@ -99,7 +99,6 @@ async def handle_reaction_event(payload, event_type: str):
             rows = all_rows[1:]
 
             if event_type == "add":
-                # ✅ Check for duplicate
                 for row in rows:
                     if len(row) >= 6:
                         if (
@@ -120,7 +119,7 @@ async def handle_reaction_event(payload, event_type: str):
                 print(f"✅ [{cog_name}] Logged ADD: {member.name} → {emoji} on {message_text}")
 
             elif event_type == "remove":
-                for index, row in enumerate(rows, start=2):  # Sheet row index starts at 2
+                for index, row in enumerate(rows, start=2):
                     if len(row) >= 6:
                         if (
                             row[2].strip() == str(payload.user_id) and
