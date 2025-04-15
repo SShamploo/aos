@@ -25,16 +25,24 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Format and send to #datesandtimes
+        # Get channel
         channel = discord.utils.get(interaction.guild.text_channels, name="datesandtimes")
         if not channel:
             await interaction.response.send_message("❌ #datesandtimes channel not found.", ephemeral=True)
             return
 
-        role_mention = "@CAPO" if self.league == "HC" else "@SOLDIER"
+        # Get the actual emoji
+        emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
+        emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
 
+        # Get the actual role mention
+        role_name = "CAPO" if self.league == "HC" else "SOLDIER"
+        role = discord.utils.get(interaction.guild.roles, name=role_name)
+        role_mention = role.mention if role else f"@{role_name}"
+
+        # Build message
         message = (
-            f"# :AOSgold: {self.date.value} | {self.time.value} | "
+            f"# {emoji_str} {self.date.value} | {self.time.value} | "
             f"{self.enemy_team.value} | {self.league} | {self.match_type} {role_mention}"
         )
         await channel.send(message)
@@ -93,4 +101,3 @@ class MatchScheduler(commands.Cog):
 # Setup
 async def setup(bot):
     await bot.add_cog(MatchScheduler(bot))
-
