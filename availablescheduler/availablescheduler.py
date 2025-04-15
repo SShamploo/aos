@@ -12,14 +12,15 @@ from oauth2client.service_account import ServiceAccountCredentials
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.sent_messages = {}  # {channel_id: {message_id: message_text}}
 
+        # Google Sheets setup
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.gc = gspread.authorize(creds)
         self.sheet = self.gc.open("AOS").worksheet("availability")
+        self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
 
     @app_commands.command(name="sendavailability", description="Post availability messages for a league.")
     @app_commands.choices(
@@ -40,7 +41,6 @@ class AvailabilityScheduler(commands.Cog):
 
         today = datetime.now().date()
         sunday = today - timedelta(days=(today.weekday() + 1) % 7)
-        self.sent_messages[interaction.channel.id] = {}
 
         for i in range(7):
             day = sunday + timedelta(days=i)
@@ -48,7 +48,17 @@ class AvailabilityScheduler(commands.Cog):
             msg = await interaction.channel.send(f"**{label}**")
             for emoji in emojis:
                 await msg.add_reaction(emoji)
-            self.sent_messages[interaction.channel.id][str(msg.id)] = label
+
+            # ✅ Log to currentavailability sheet
+            try:
+                self.current_sheet.append_row([
+                    league.value,
+                    str(interaction.channel.id),
+                    str(msg.id),
+                    label
+                ])
+            except Exception as e:
+                print(f"⚠️ Failed to write to currentavailability sheet: {e}")
 
         await interaction.followup.send(f"✅ Posted availability for {league.value}", ephemeral=True)
 
@@ -58,34 +68,44 @@ class AvailabilityScheduler(commands.Cog):
     )
     async def deleteavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
         await interaction.response.defer(ephemeral=True)
-        deleted = 0
-        channel_id = interaction.channel.id
 
-        if channel_id in self.sent_messages:
-            for msg_id in self.sent_messages[channel_id]:
+        deleted = 0
+        channel_id = str(interaction.channel.id)
+        try:
+            rows = self.current_sheet.get_all_values()[1:]
+            to_delete = []
+            msg_ids_to_delete = []
+
+            for i, row in enumerate(rows):
+                if row[0] == league.value and row[1] == channel_id:
+                    to_delete.append(i + 2)
+                    msg_ids_to_delete.append(row[2])
+
+            for msg_id in msg_ids_to_delete:
                 try:
                     msg = await interaction.channel.fetch_message(msg_id)
                     await msg.delete()
                     deleted += 1
-                except Exception:
+                except:
                     continue
-            tracked_ids = list(self.sent_messages[channel_id].keys())
-            self.sent_messages[channel_id] = {}
-        else:
-            tracked_ids = []
 
-        try:
-            all_rows = self.sheet.get_all_values()
-            to_delete = [
-                i + 2 for i, row in enumerate(all_rows[1:])
-                if row[4] in tracked_ids and row[6] == league.value
+            # Delete from availability sheet
+            avail_rows = self.sheet.get_all_values()
+            avail_delete_rows = [
+                i + 2 for i, row in enumerate(avail_rows[1:])
+                if row[4] in msg_ids_to_delete and row[6] == league.value
             ]
-            for i in reversed(to_delete):
+            for i in reversed(avail_delete_rows):
                 self.sheet.delete_rows(i)
-        except Exception as e:
-            print(f"⚠️ Google Sheet deletion failed: {e}")
 
-        await interaction.followup.send(f"🗑️ Deleted {deleted} messages and cleared related rows for {league.value}.", ephemeral=True)
+            # Delete from currentavailability
+            for i in reversed(to_delete):
+                self.current_sheet.delete_rows(i)
+
+        except Exception as e:
+            print(f"⚠️ Error during deleteavailability: {e}")
+
+        await interaction.followup.send(f"🗑️ Deleted {deleted} messages and cleaned up Google Sheets for {league.value}.", ephemeral=True)
 
     @app_commands.command(name="availability", description="Display availability for a specific league and day.")
     @app_commands.choices(
