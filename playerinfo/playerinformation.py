@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import asyncio
 import os
 import json
 import base64
@@ -21,9 +20,9 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         self.sheet = sheet
 
     async def on_submit(self, interaction: discord.Interaction):
-        channel = discord.utils.get(interaction.guild.text_channels, name="playerinformation")
-        if not channel:
-            await interaction.response.send_message("❌ #playerinformation channel not found.", ephemeral=True)
+        info_channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
+        if not info_channel:
+            await interaction.response.send_message("❌ #playerinfo channel not found.", ephemeral=True)
             return
 
         embed = discord.Embed(title="📝 Player Info Submission", color=discord.Color.green())
@@ -32,8 +31,8 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         embed.add_field(name="Platform", value=self.platform, inline=False)
         embed.add_field(name="Streaming Platform", value=self.streaming_platform.value or "N/A", inline=False)
 
-        await channel.send(embed=embed)
-        await interaction.response.send_message("✅ Your info has been submitted to #playerinformation!", ephemeral=True)
+        await info_channel.send(embed=embed)
+        await interaction.response.send_message("✅ Your info has been submitted to #playerinfo!", ephemeral=True)
 
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -48,37 +47,13 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         except Exception as e:
             print(f"⚠️ Failed to write to Google Sheet: {e}")
 
-class PlayerInfo(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.prompt_message_id = None
+class PlayerInfoButtonView(discord.ui.View):
+    def __init__(self, sheet):
+        super().__init__(timeout=None)
+        self.sheet = sheet
 
-        # ✅ Google Sheet Setup
-        load_dotenv()
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
-        creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-        self.client = gspread.authorize(creds)
-        self.sheet = self.client.open("AOS").worksheet("playerinformation")
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("✅ PlayerInfo cog ready")
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-        if payload.user_id == self.bot.user.id:
-            return
-
-        if payload.message_id != self.prompt_message_id or str(payload.emoji) != "📝":
-            return
-
-        guild = self.bot.get_guild(payload.guild_id)
-        member = guild.get_member(payload.user_id)
-        if not member:
-            return
-
+    @discord.ui.button(label="Submit Player Info", style=discord.ButtonStyle.danger, custom_id="submit_player_info")
+    async def submit_info(self, interaction: discord.Interaction, button: discord.ui.Button):
         class PlatformSelect(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=60)
@@ -96,35 +71,34 @@ class PlayerInfo(commands.Cog):
                 self.selected = select.values[0]
                 self.stop()
 
-        channel = self.bot.get_channel(payload.channel_id)
-        if not channel:
-            return
-
         view = PlatformSelect()
-        try:
-            prompt = await channel.send(f"<@{payload.user_id}>, select your platform:", view=view)
-            await view.wait()
-            await prompt.delete()
-        except Exception as e:
-            print(f"⚠️ Platform select failed: {e}")
-            return
+        await interaction.response.send_message("Please select your platform:", view=view, ephemeral=True)
+        await view.wait()
 
         if view.selected:
-            await member.send_modal(PlayerInfoModal(platform=view.selected, interaction=payload, sheet=self.sheet))
+            await interaction.user.send_modal(PlayerInfoModal(platform=view.selected, interaction=interaction, sheet=self.sheet))
 
-    # ✅ NEW: Slash command to send the prompt and register the cog
-    @app_commands.command(name="playerinfoprompt", description="Send the player info 📝 prompt message")
+class PlayerInfo(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+        # ✅ Google Sheets setup
+        load_dotenv()
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
+        creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
+        self.client = gspread.authorize(creds)
+        self.sheet = self.client.open("AOS").worksheet("playerinformation")
+
+    @app_commands.command(name="playerinfoprompt", description="Send the red Submit Player Info button")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
-        if not channel:
-            await interaction.response.send_message("❌ #playerinfo channel not found.", ephemeral=True)
-            return
+        await interaction.response.send_message(
+            "Click the red button below to submit your player information:",
+            view=PlayerInfoButtonView(self.sheet),
+            ephemeral=False
+        )
 
-        message = await channel.send("Click 📝 to submit your player information.")
-        await message.add_reaction("📝")
-        self.prompt_message_id = message.id
-        await interaction.response.send_message("✅ Prompt sent!", ephemeral=True)
-
-# Setup function
+# Register cog
 async def setup(bot):
     await bot.add_cog(PlayerInfo(bot))
