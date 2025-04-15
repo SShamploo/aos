@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-class PlayerInfoModal(discord.ui.Modal, title="SUBMIT YOUR INFO"):
+class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
     def __init__(self, sheet):
         super().__init__()
         self.sheet = sheet
@@ -69,7 +69,7 @@ class PlayerInfoButton(discord.ui.View):
         self.sheet = sheet
 
     @discord.ui.button(
-        label="AOS PLAYER INFORMATION",
+        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         style=discord.ButtonStyle.danger,
         custom_id="player_info_button"
     )
@@ -109,11 +109,27 @@ class PlayerInformation(commands.Cog):
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
-    @app_commands.command(name="userinformation", description="View a player's submitted info.")
-    @app_commands.describe(user="Select the Discord user")
-    async def userinformation(self, interaction: discord.Interaction, user: discord.User):
+    @app_commands.command(name="userinformation", description="View player info or show all.")
+    @app_commands.describe(user="Select a user or choose yourself. Use @everyone to show all.")
+    async def userinformation(self, interaction: discord.Interaction, user: discord.User = None):
         all_rows = self.sheet.get_all_values()
         rows = all_rows[1:]
+
+        if user is None or user == interaction.guild.default_role:  # @everyone
+            if not rows:
+                await interaction.response.send_message("⚠️ No entries found.", ephemeral=True)
+                return
+
+            lines = []
+            for row in rows:
+                if len(row) >= 6:
+                    line = f"{row[1]}    {row[3]}    {row[4]}    {row[5]}"
+                    lines.append(line)
+
+            info = "\n".join(lines)
+            embed = discord.Embed(title="📋 AOS Player Information", description=f"```{info}```", color=discord.Color.purple())
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
 
         for row in rows:
             if len(row) >= 4 and row[2] == str(user.id):
