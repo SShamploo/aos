@@ -30,7 +30,8 @@ initial_extensions = [
     "levels.xp",
     "vc_autochannel.vc_autochannel",
     "playerinfo.playerinformation",
-    "matchscheduler.matchscheduler"  # ✅ NEW: Schedule Match Cog
+    "matchscheduler.matchscheduler",
+    "availablescheduler.availablescheduler"  # ✅ NEW: Combined HC/AL Availability Cog
 ]
 
 async def load_cogs():
@@ -96,18 +97,12 @@ async def handle_reaction_event(payload, event_type: str):
         try:
             sheet = cog.sheet
             all_rows = sheet.get_all_values()
-            header = all_rows[0]
             rows = all_rows[1:]
 
             if event_type == "add":
                 for row in rows:
-                    if len(row) >= 6:
-                        if (
-                            row[2].strip() == str(member.id) and
-                            row[3].strip() == emoji and
-                            row[4].strip() == message_id
-                        ):
-                            return  # Already logged
+                    if len(row) >= 6 and row[2].strip() == str(member.id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                        return  # Already logged
 
                 sheet.append_row([
                     timestamp,
@@ -121,15 +116,10 @@ async def handle_reaction_event(payload, event_type: str):
 
             elif event_type == "remove":
                 for index, row in enumerate(rows, start=2):
-                    if len(row) >= 6:
-                        if (
-                            row[2].strip() == str(payload.user_id) and
-                            row[3].strip() == emoji and
-                            row[4].strip() == message_id
-                        ):
-                            sheet.delete_rows(index)
-                            print(f"🗑️ [{cog_name}] Removed: {emoji} by {member.name}")
-                            return
+                    if len(row) >= 6 and row[2].strip() == str(payload.user_id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                        sheet.delete_rows(index)
+                        print(f"🗑️ [{cog_name}] Removed: {emoji} by {member.name}")
+                        return
 
         except Exception as e:
             print(f"⚠️ [{cog_name}] Failed to handle {event_type} reaction: {e}")
