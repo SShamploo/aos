@@ -13,20 +13,10 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         super().__init__()
         self.sheet = sheet
 
-        self.header = discord.ui.TextInput(
-            label="**⠀⠀⠀⠀⠀⠀⠀⠀⠀PLEASE FILL OUT YOUR PLAYER INFO BELOW⠀⠀⠀⠀⠀⠀⠀⠀⠀**",
-            required=False,
-            default="",
-            style=discord.TextStyle.short,
-            max_length=1
-        )
-        self.header.disabled = True
-
         self.activision = discord.ui.TextInput(label="Activision ID", placeholder="e.g., Username#123456", required=True)
         self.platform = discord.ui.TextInput(label="Platform", placeholder="PC / Xbox / Playstation", required=True)
         self.stream = discord.ui.TextInput(label="Streaming Platform", placeholder="e.g., Twitch.tv/yourname", required=False)
 
-        self.add_item(self.header)
         self.add_item(self.activision)
         self.add_item(self.platform)
         self.add_item(self.stream)
@@ -64,7 +54,7 @@ class PlayerInfoButton(discord.ui.View):
     @discord.ui.button(
         label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         style=discord.ButtonStyle.danger,
-        custom_id="player_info_button"  # ✅ Required for persistent views
+        custom_id="player_info_button"  # Persistent view binding
     )
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerInfoModal(self.sheet))
@@ -86,7 +76,6 @@ class PlayerInformation(commands.Cog):
 
         channel = interaction.channel
 
-        # Delete any previous bot prompt (image/button)
         try:
             async for msg in channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
@@ -94,20 +83,16 @@ class PlayerInformation(commands.Cog):
         except Exception as e:
             print(f"⚠️ Failed to clean previous prompt: {e}")
 
-        # Send image
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
         await channel.send(file=file)
 
-        # Send button
         await channel.send(view=PlayerInfoButton(self.sheet))
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
-# ✅ REGISTER PERSISTENT VIEW ON STARTUP
+# 🔒 Persistent View Registration
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
-
-    # ✅ Register persistent view instance
-    bot.add_view(PlayerInfoButton(cog.sheet))
+    bot.add_view(PlayerInfoButton(cog.sheet))  # Register view after restart
