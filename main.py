@@ -20,7 +20,7 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix=None, intents=intents)
 
-# ✅ Cogs list (ONLY new system)
+# ✅ Cogs list (no legacy)
 initial_extensions = [
     "Results.results",
     "ticketsystem.tickets",
@@ -29,7 +29,7 @@ initial_extensions = [
     "vc_autochannel.vc_autochannel",
     "playerinfo.playerinformation",
     "matchscheduler.matchscheduler",
-    "availablescheduler.availablescheduler"  # ✅ Only active availability cog
+    "availablescheduler.availablescheduler"
 ]
 
 async def load_cogs():
@@ -55,7 +55,6 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ Track reactions from dropdown-based scheduler
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, "add")
@@ -64,7 +63,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, "remove")
 
-# 🔁 Unified handler for new availability system
+# 🔁 Main handler for unified availability system
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -79,7 +78,6 @@ async def handle_reaction_event(payload, event_type: str):
 
     cog = bot.get_cog("AvailabilityScheduler")
     if not cog:
-        print("⚠️ AvailabilityScheduler cog not found.")
         return
 
     channel_id = str(payload.channel_id)
@@ -87,18 +85,15 @@ async def handle_reaction_event(payload, event_type: str):
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 🔍 Find message in tracked sent_messages
-    message_text = None
-    league = None
+    # 📦 Extract message text and league
+    message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
+    if not message_text or " | " not in message_text:
+        return
 
-    for league_key, league_dict in cog.sent_messages.items():
-        if channel_id in league_dict and message_id in league_dict[channel_id]:
-            message_text = league_dict[channel_id][message_id]
-            league = league_key
-            break
-
-    if not message_text:
-        return  # Not tracked
+    try:
+        league = message_text.split(" | ")[1]
+    except IndexError:
+        league = "UNKNOWN"
 
     try:
         sheet = cog.sheet
@@ -107,8 +102,8 @@ async def handle_reaction_event(payload, event_type: str):
 
         if event_type == "add":
             for row in rows:
-                if len(row) >= 7 and row[2].strip() == str(member.id) and row[3].strip() == emoji and row[4].strip() == message_id:
-                    return  # Duplicate
+                if len(row) >= 7 and row[2] == str(member.id) and row[3] == emoji and row[4] == message_id:
+                    return  # Already exists
 
             sheet.append_row([
                 timestamp,
@@ -123,7 +118,7 @@ async def handle_reaction_event(payload, event_type: str):
 
         elif event_type == "remove":
             for index, row in enumerate(rows, start=2):
-                if len(row) >= 7 and row[2].strip() == str(payload.user_id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                if len(row) >= 7 and row[2] == str(payload.user_id) and row[3] == emoji and row[4] == message_id:
                     sheet.delete_rows(index)
                     print(f"🗑️ Removed: {emoji} by {member.name}")
                     return
