@@ -27,7 +27,7 @@ class PlayerInfoModal(discord.ui.Modal, title="Fill out your information"):
             f"**Discord Username:** {user.mention}\n"
             f"**Activision ID:** {self.activision.value}\n"
             f"**Platform:** {self.platform.value}\n"
-            f"**Streaming Platform:** {self.stream.value if self.stream.value else 'N/A'}"
+            f"**Stream Link:** {self.stream.value if self.stream.value else 'N/A'}"
         )
 
         channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
@@ -52,7 +52,7 @@ class PlayerInfoButton(discord.ui.View):
         self.sheet = sheet
 
     @discord.ui.button(
-        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         style=discord.ButtonStyle.danger,
         custom_id="player_info_button"  # Persistent view binding
     )
