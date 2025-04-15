@@ -9,12 +9,12 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-# Modal after platform is selected
+# Modal for submitting info
 class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
     def __init__(self, platform, sheet):
         super().__init__()
-        self.sheet = sheet
         self.platform = platform
+        self.sheet = sheet
 
         self.activision_id = discord.ui.TextInput(
             label="Activision ID",
@@ -56,31 +56,42 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
                 self.streaming_platform.value or "N/A"
             ])
         except Exception as e:
-            print(f"⚠️ Google Sheets Error: {e}")
+            print(f"⚠️ Failed to write to Google Sheet: {e}")
 
-# View to display platform dropdown
+# Dropdown view triggered by button
 class PlatformSelectView(discord.ui.View):
     def __init__(self, sheet):
         super().__init__(timeout=60)
         self.sheet = sheet
 
     @discord.ui.select(
-        placeholder="Select your platform",
+        placeholder="Select your platform...",
         options=[
             discord.SelectOption(label="PC", value="PC"),
             discord.SelectOption(label="PlayStation", value="PlayStation"),
             discord.SelectOption(label="Xbox", value="Xbox")
         ]
     )
-    async def select_callback(self, interaction: discord.Interaction, select):
-        selected_platform = select.values[0]
-        await interaction.response.send_modal(PlayerInfoModal(platform=selected_platform, sheet=self.sheet))
+    async def select_platform(self, interaction: discord.Interaction, select):
+        selected = select.values[0]
+        await interaction.response.send_modal(PlayerInfoModal(platform=selected, sheet=self.sheet))
 
+# Main button that starts the flow
+class PlayerInfoButtonView(discord.ui.View):
+    def __init__(self, sheet):
+        super().__init__(timeout=None)
+        self.sheet = sheet
+
+    @discord.ui.button(label="Submit Player Info", style=discord.ButtonStyle.danger, custom_id="submit_info_btn")
+    async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Select your platform:", view=PlatformSelectView(self.sheet), ephemeral=True)
+
+# Main cog setup
 class PlayerInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Setup Google Sheet
+        # Google Sheets Setup
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -89,11 +100,13 @@ class PlayerInfo(commands.Cog):
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
 
-    @app_commands.command(name="playerinfoprompt", description="Start player info form")
+    @app_commands.command(name="playerinfoprompt", description="Post the player info button")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        view = PlatformSelectView(sheet=self.sheet)
-        await interaction.response.send_message("Please select your platform:", view=view, ephemeral=True)
+        await interaction.response.send_message(
+            "Click the button below to submit your player information:",
+            view=PlayerInfoButtonView(self.sheet)
+        )
 
-# Register cog
+# Register the cog
 async def setup(bot):
     await bot.add_cog(PlayerInfo(bot))
