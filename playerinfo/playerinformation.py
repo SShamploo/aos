@@ -13,10 +13,20 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         super().__init__()
         self.sheet = sheet
 
+        self.header = discord.ui.TextInput(
+            label="**⠀⠀⠀⠀⠀⠀⠀⠀⠀PLEASE FILL OUT YOUR PLAYER INFO BELOW⠀⠀⠀⠀⠀⠀⠀⠀⠀**",
+            required=False,
+            default="",
+            style=discord.TextStyle.short,
+            max_length=1
+        )
+        self.header.disabled = True
+
         self.activision = discord.ui.TextInput(label="Activision ID", placeholder="e.g., Username#123456", required=True)
         self.platform = discord.ui.TextInput(label="Platform", placeholder="PC / Xbox / Playstation", required=True)
         self.stream = discord.ui.TextInput(label="Streaming Platform", placeholder="e.g., Twitch.tv/yourname", required=False)
 
+        self.add_item(self.header)
         self.add_item(self.activision)
         self.add_item(self.platform)
         self.add_item(self.stream)
@@ -70,14 +80,15 @@ class PlayerInformation(commands.Cog):
     async def playerinfoprompt(self, interaction: discord.Interaction):
         channel = interaction.channel
 
-        # Delete previous prompts (messages with this specific image or button sent by the bot)
+        # Delete previous prompt sent by bot in last 10 messages
         try:
-            async for msg in channel.history(limit=25):
-                if msg.author.id == interaction.client.user.id:
-                    if msg.attachments or any(isinstance(comp, discord.ui.Button) for row in msg.components for comp in row.children):
-                        await msg.delete()
+            async for msg in channel.history(limit=10):
+                if msg.author.id == interaction.client.user.id and (
+                    msg.attachments or msg.components
+                ):
+                    await msg.delete()
         except Exception as e:
-            print(f"⚠️ Failed to clean previous prompts: {e}")
+            print(f"⚠️ Failed to clean previous prompt: {e}")
 
         # Send image
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
