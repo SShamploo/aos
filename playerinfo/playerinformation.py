@@ -26,7 +26,6 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
             await interaction.response.send_message("❌ #playerinformation channel not found.", ephemeral=True)
             return
 
-        # ✅ Format for display
         embed = discord.Embed(title="📝 Player Info Submission", color=discord.Color.green())
         embed.add_field(name="Discord Username", value=interaction.user.mention, inline=False)
         embed.add_field(name="Activision ID", value=self.activision_id.value, inline=False)
@@ -36,7 +35,6 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         await channel.send(embed=embed)
         await interaction.response.send_message("✅ Your info has been submitted to #playerinformation!", ephemeral=True)
 
-        # ✅ Save to Google Sheet
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.sheet.append_row([
@@ -66,16 +64,7 @@ class PlayerInfo(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        channel = discord.utils.get(self.bot.get_all_channels(), name="playerinfo")  # Target channel for reaction message
-        if not channel:
-            print("⚠️ #playerinfo channel not found.")
-            return
-
-        if self.prompt_message_id is None:
-            message = await channel.send("Click 📝 to submit your player information.")
-            await message.add_reaction("📝")
-            self.prompt_message_id = message.id
-            print(f"✅ Player info prompt sent (ID: {self.prompt_message_id})")
+        print("✅ PlayerInfo cog ready")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -122,6 +111,19 @@ class PlayerInfo(commands.Cog):
 
         if view.selected:
             await member.send_modal(PlayerInfoModal(platform=view.selected, interaction=payload, sheet=self.sheet))
+
+    # ✅ NEW: Slash command to send the prompt and register the cog
+    @app_commands.command(name="playerinfoprompt", description="Send the player info 📝 prompt message")
+    async def playerinfoprompt(self, interaction: discord.Interaction):
+        channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
+        if not channel:
+            await interaction.response.send_message("❌ #playerinfo channel not found.", ephemeral=True)
+            return
+
+        message = await channel.send("Click 📝 to submit your player information.")
+        await message.add_reaction("📝")
+        self.prompt_message_id = message.id
+        await interaction.response.send_message("✅ Prompt sent!", ephemeral=True)
 
 # Setup function
 async def setup(bot):
