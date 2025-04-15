@@ -9,12 +9,13 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
+# Modal after platform is selected
 class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
-    def __init__(self, sheet):
+    def __init__(self, platform, sheet):
         super().__init__()
         self.sheet = sheet
+        self.platform = platform
 
-        # Inputs
         self.activision_id = discord.ui.TextInput(
             label="Activision ID",
             placeholder="Enter your Activision ID",
@@ -29,25 +30,7 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         self.add_item(self.activision_id)
         self.add_item(self.streaming_platform)
 
-        # Platform Dropdown inside the modal
-        self.platform_dropdown = discord.ui.Select(
-            placeholder="Select your platform",
-            options=[
-                discord.SelectOption(label="PC", value="PC"),
-                discord.SelectOption(label="PlayStation", value="PlayStation"),
-                discord.SelectOption(label="Xbox", value="Xbox")
-            ]
-        )
-        self.platform = None
-        self.platform_dropdown.callback = self.set_platform
-        self.add_item(self.platform_dropdown)
-
-    async def set_platform(self, interaction: discord.Interaction):
-        self.platform = self.platform_dropdown.values[0]
-
     async def on_submit(self, interaction: discord.Interaction):
-        self.platform = self.platform or self.platform_dropdown.values[0]
-
         info_channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
         if not info_channel:
             await interaction.response.send_message("❌ #playerinfo channel not found.", ephemeral=True)
@@ -60,7 +43,7 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         embed.add_field(name="Streaming Platform", value=self.streaming_platform.value or "N/A", inline=False)
 
         await info_channel.send(embed=embed)
-        await interaction.response.send_message("✅ Your info has been submitted to #playerinfo!", ephemeral=True)
+        await interaction.response.send_message("✅ Your info has been submitted!", ephemeral=True)
 
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -73,13 +56,31 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
                 self.streaming_platform.value or "N/A"
             ])
         except Exception as e:
-            print(f"⚠️ Failed to write to Google Sheet: {e}")
+            print(f"⚠️ Google Sheets Error: {e}")
+
+# View to display platform dropdown
+class PlatformSelectView(discord.ui.View):
+    def __init__(self, sheet):
+        super().__init__(timeout=60)
+        self.sheet = sheet
+
+    @discord.ui.select(
+        placeholder="Select your platform",
+        options=[
+            discord.SelectOption(label="PC", value="PC"),
+            discord.SelectOption(label="PlayStation", value="PlayStation"),
+            discord.SelectOption(label="Xbox", value="Xbox")
+        ]
+    )
+    async def select_callback(self, interaction: discord.Interaction, select):
+        selected_platform = select.values[0]
+        await interaction.response.send_modal(PlayerInfoModal(platform=selected_platform, sheet=self.sheet))
 
 class PlayerInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # ✅ Google Sheets setup
+        # Setup Google Sheet
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -88,9 +89,10 @@ class PlayerInfo(commands.Cog):
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
 
-    @app_commands.command(name="playerinfoprompt", description="Submit your player info via a form")
+    @app_commands.command(name="playerinfoprompt", description="Start player info form")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(PlayerInfoModal(sheet=self.sheet))  # ✅ CORRECT method
+        view = PlatformSelectView(sheet=self.sheet)
+        await interaction.response.send_message("Please select your platform:", view=view, ephemeral=True)
 
 # Register cog
 async def setup(bot):
