@@ -25,10 +25,6 @@ bot = commands.Bot(command_prefix=None, intents=intents)
 
 initial_extensions = [
     "Results.results",
-    "ticketsystem.tickets",
-    "activitylog.logging",
-    "levels.xp",
-    "vc_autochannel.vc_autochannel",
     "playerinfo.playerinformation",
     "matchscheduler.matchscheduler",
     "availablescheduler.availablescheduler"
@@ -100,7 +96,7 @@ async def handle_reaction_event(payload, event_type: str):
 
         league = matched_row[0]
         full_text = matched_row[3]
-        message_text = full_text.split()[0].upper()  # ✅ Only "SUNDAY", "MONDAY", etc.
+        message_text = full_text.split()[0].upper()  # Only "SUNDAY", etc.
 
         all_rows = availability_sheet.get_all_values()
 
@@ -130,5 +126,5 @@ async def handle_reaction_event(payload, event_type: str):
     except Exception as e:
         print(f"❌ Reaction tracking failed: {e}")
 
-# 🔁 Start the bot
+# Start the bot
 asyncio.run(main())
