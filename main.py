@@ -57,7 +57,7 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# 👇 REACTION TRACKING FOR AVAILABILITY MESSAGES 👇
+# 👇 REACTION TRACKING FOR AVAILABILITY MESSAGES WITH DUPLICATE CHECKING 👇
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -78,14 +78,30 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     channel_id = payload.channel_id
     message_id = payload.message_id
-    emoji = str(payload.emoji)
+    emoji = payload.emoji.name if hasattr(payload.emoji, "name") else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)
 
     if not message_text:
-        return  # Message not tracked
+        return  # Not a tracked message
 
     try:
+        # ✅ PREVENT DUPLICATE ENTRIES
+        existing_rows = hc_cog.sheet.get_all_values()
+        headers = existing_rows[0] if existing_rows else []
+        rows = existing_rows[1:] if len(existing_rows) > 1 else []
+
+        for row in rows:
+            if (
+                len(row) >= 6 and
+                row[2] == str(member.id) and  # User ID
+                row[3] == emoji and           # Emoji name
+                row[4] == str(message_id)     # Message ID
+            ):
+                print(f"⚠️ Duplicate reaction found — skipping log for {member.name}")
+                return
+
+        # Append if not duplicate
         hc_cog.sheet.append_row([
             timestamp,
             member.name,
