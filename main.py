@@ -10,6 +10,7 @@ from datetime import datetime
 
 load_dotenv()
 
+# Bot intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -18,6 +19,7 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix=None, intents=intents)
 
+# ✅ Load extensions (no legacy cogs)
 initial_extensions = [
     "Results.results",
     "ticketsystem.tickets",
@@ -45,7 +47,7 @@ async def on_ready():
         synced = await bot.tree.sync(guild=None)
         print(f"✅ Synced {len(synced)} global slash command(s)")
     except Exception as e:
-        print(f"❌ Failed to sync slash commands: {e}")
+        print(f"❌ Slash command sync failed: {e}")
         traceback.print_exc()
 
 async def main():
@@ -60,6 +62,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, "remove")
 
+# 🔁 Unified handler for availability reactions
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -83,12 +86,7 @@ async def handle_reaction_event(payload, event_type: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
-    if not message_text:
-        print(f"⚠️ Message {message_id} not tracked in sent_messages.")
-        return
-
-    if " | " not in message_text:
-        print(f"⚠️ Message text missing league format: {message_text}")
+    if not message_text or " | " not in message_text:
         return
 
     try:
@@ -98,18 +96,15 @@ async def handle_reaction_event(payload, event_type: str):
 
     try:
         sheet = cog.sheet
-        print(f"📤 Attempting to log to sheet: {sheet.title}")
-
         all_rows = sheet.get_all_values()
         rows = all_rows[1:]
 
         if event_type == "add":
             for row in rows:
                 if len(row) >= 7 and row[2] == str(member.id) and row[3] == emoji and row[4] == message_id:
-                    print("⚠️ Duplicate found. Skipping append.")
-                    return
+                    return  # Already logged
 
-            row_data = [
+            sheet.append_row([
                 timestamp,
                 member.name,
                 str(member.id),
@@ -117,18 +112,18 @@ async def handle_reaction_event(payload, event_type: str):
                 message_id,
                 message_text,
                 league
-            ]
-            sheet.append_row(row_data)
-            print(f"✅ Logged ADD: {row_data}")
+            ])
+            print(f"✅ Logged ADD: {member.name} → {emoji} on {message_text} ({league})")
 
         elif event_type == "remove":
             for index, row in enumerate(rows, start=2):
                 if len(row) >= 7 and row[2] == str(payload.user_id) and row[3] == emoji and row[4] == message_id:
                     sheet.delete_rows(index)
-                    print(f"🗑️ Deleted row for emoji {emoji} by {member.name}")
+                    print(f"🗑️ Removed: {emoji} by {member.name}")
                     return
 
     except Exception as e:
-        print(f"❌ Google Sheets error: {e}")
+        print(f"❌ Google Sheets logging failed: {e}")
 
+# 🔁 Start the bot
 asyncio.run(main())
