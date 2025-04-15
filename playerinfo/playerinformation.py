@@ -51,7 +51,7 @@ class PlayerInfoButton(discord.ui.View):
         super().__init__(timeout=None)
         self.sheet = sheet
 
-    @discord.ui.button(label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.danger)
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerInfoModal(self.sheet))
 
@@ -65,30 +65,28 @@ class PlayerInformation(commands.Cog):
         creds_json = json.loads(creds)
         self.client = gspread.authorize(ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope))
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
-        self.last_prompt_ids = []  # Stores both image + button message IDs
 
     @app_commands.command(name="playerinfoprompt", description="Post the player info submission image + button.")
     async def playerinfoprompt(self, interaction: discord.Interaction):
         channel = interaction.channel
 
-        # Delete previous prompt (image + button)
-        for msg_id in self.last_prompt_ids:
-            try:
-                msg = await channel.fetch_message(msg_id)
-                await msg.delete()
-            except:
-                continue
-        self.last_prompt_ids = []
+        # Delete previous prompts (messages with this specific image or button sent by the bot)
+        try:
+            async for msg in channel.history(limit=25):
+                if msg.author.id == interaction.client.user.id:
+                    if msg.attachments or any(isinstance(comp, discord.ui.Button) for row in msg.components for comp in row.children):
+                        await msg.delete()
+        except Exception as e:
+            print(f"⚠️ Failed to clean previous prompts: {e}")
 
         # Send image
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
-        image_msg = await channel.send(file=file)
+        await channel.send(file=file)
 
         # Send button
-        button_msg = await channel.send(view=PlayerInfoButton(self.sheet))
+        await channel.send(view=PlayerInfoButton(self.sheet))
 
-        self.last_prompt_ids = [image_msg.id, button_msg.id]
         await interaction.response.send_message("✅ Prompt sent.", ephemeral=True)
 
 async def setup(bot):
