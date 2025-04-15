@@ -10,16 +10,43 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
-    activision_id = discord.ui.TextInput(label="Activision ID", placeholder="Your Activision ID", required=True)
-    streaming_platform = discord.ui.TextInput(label="Streaming Platform", placeholder="Twitch, Kick, etc. or leave blank", required=False)
-
-    def __init__(self, platform, interaction, sheet):
+    def __init__(self, sheet):
         super().__init__()
-        self.platform = platform
-        self.interaction = interaction
         self.sheet = sheet
 
+        self.activision_id = discord.ui.TextInput(
+            label="Activision ID",
+            placeholder="Enter your Activision ID",
+            required=True
+        )
+        self.streaming_platform = discord.ui.TextInput(
+            label="Streaming Platform",
+            placeholder="Twitch, Kick, etc. or leave blank",
+            required=False
+        )
+
+        self.add_item(self.activision_id)
+        self.add_item(self.streaming_platform)
+
+        # Dropdown for platform (as a Select)
+        self.platform_select = discord.ui.Select(
+            placeholder="Select your platform",
+            options=[
+                discord.SelectOption(label="PC", value="PC"),
+                discord.SelectOption(label="PlayStation", value="PlayStation"),
+                discord.SelectOption(label="Xbox", value="Xbox")
+            ]
+        )
+        self.platform_select.callback = self.select_callback
+        self.add_item(self.platform_select)
+        self.platform = None
+
+    async def select_callback(self, interaction: discord.Interaction):
+        self.platform = self.platform_select.values[0]
+
     async def on_submit(self, interaction: discord.Interaction):
+        self.platform = self.platform or self.platform_select.values[0]
+
         info_channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
         if not info_channel:
             await interaction.response.send_message("❌ #playerinfo channel not found.", ephemeral=True)
@@ -47,37 +74,6 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         except Exception as e:
             print(f"⚠️ Failed to write to Google Sheet: {e}")
 
-class PlayerInfoButtonView(discord.ui.View):
-    def __init__(self, sheet):
-        super().__init__(timeout=None)
-        self.sheet = sheet
-
-    @discord.ui.button(label="Submit Player Info", style=discord.ButtonStyle.danger, custom_id="submit_player_info")
-    async def submit_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        class PlatformSelect(discord.ui.View):
-            def __init__(self):
-                super().__init__(timeout=60)
-                self.selected = None
-
-            @discord.ui.select(
-                placeholder="Select your platform...",
-                options=[
-                    discord.SelectOption(label="PC", value="PC"),
-                    discord.SelectOption(label="PlayStation", value="PlayStation"),
-                    discord.SelectOption(label="Xbox", value="Xbox"),
-                ]
-            )
-            async def select_callback(self, interaction: discord.Interaction, select):
-                self.selected = select.values[0]
-                self.stop()
-
-        view = PlatformSelect()
-        await interaction.response.send_message("Please select your platform:", view=view, ephemeral=True)
-        await view.wait()
-
-        if view.selected:
-            await interaction.user.send_modal(PlayerInfoModal(platform=view.selected, interaction=interaction, sheet=self.sheet))
-
 class PlayerInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -91,13 +87,9 @@ class PlayerInfo(commands.Cog):
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
 
-    @app_commands.command(name="playerinfoprompt", description="Send the red Submit Player Info button")
+    @app_commands.command(name="playerinfoprompt", description="Open the player info submission modal")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            "Click the red button below to submit your player information:",
-            view=PlayerInfoButtonView(self.sheet),
-            ephemeral=False
-        )
+        await interaction.response.send_modal(PlayerInfoModal(sheet=self.sheet))
 
 # Register cog
 async def setup(bot):
