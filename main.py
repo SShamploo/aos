@@ -52,7 +52,7 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ REACTION TRACKING FIXED FOR MESSAGE TEXT PULLING
+# ✅ REACTION ADDED: Google Sheet logging
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -76,14 +76,14 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)  # ✅ fixed lookup with str keys
+    message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)
 
     if not message_text:
-        return  # Not a tracked message
+        return
 
     try:
         existing_rows = hc_cog.sheet.get_all_values()
-        for row in existing_rows[1:]:  # skip header
+        for row in existing_rows[1:]:
             if len(row) >= 6:
                 if (
                     row[2].strip() == str(member.id) and
@@ -105,5 +105,46 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     except Exception as e:
         print(f"⚠️ Failed to write to Google Sheet: {e}")
 
-asyncio.run(main())
+# ✅ REACTION REMOVED: Delete from Google Sheet
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    if payload.user_id == bot.user.id:
+        return
 
+    guild = bot.get_guild(payload.guild_id)
+    if not guild:
+        return
+
+    member = guild.get_member(payload.user_id)
+    if not member or member.bot:
+        return
+
+    hc_cog = bot.get_cog("HCAvailabilityScheduler")
+    if not hc_cog:
+        return
+
+    channel_id = str(payload.channel_id)
+    message_id = str(payload.message_id)
+    emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
+
+    try:
+        all_rows = hc_cog.sheet.get_all_values()
+        header = all_rows[0]
+        data_rows = all_rows[1:]
+
+        for index, row in enumerate(data_rows, start=2):  # start=2 to match sheet row numbers
+            if len(row) >= 6:
+                if (
+                    row[2].strip() == str(payload.user_id) and
+                    row[3].strip() == emoji and
+                    row[4].strip() == message_id
+                ):
+                    hc_cog.sheet.delete_rows(index)
+                    print(f"🗑️ Removed row for reaction: {emoji} by {member.name}")
+                    return
+
+    except Exception as e:
+        print(f"⚠️ Failed to remove row from Google Sheet: {e}")
+
+# Start bot
+asyncio.run(main())
