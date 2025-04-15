@@ -41,7 +41,8 @@ class HCAvailabilityScheduler(commands.Cog):
 
     @app_commands.command(name="hcavailabilityscheduler", description="Post availability days and add time emojis")
     async def hcavailabilityscheduler(self, interaction: discord.Interaction):
-        emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12PM"]
+        # ✅ Updated emoji list: 12AM instead of 12PM
+        emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         emojis = []
 
         for name in emoji_names:
@@ -56,15 +57,16 @@ class HCAvailabilityScheduler(commands.Cog):
         days_since_sunday = (today.weekday() + 1) % 7
         sunday = today - timedelta(days=days_since_sunday)
 
-        await interaction.response.send_message("📅 Weekly Availability:", ephemeral=False)
-
+        # ✅ Removed "📅 Weekly Availability" message
         self.sent_messages[str(interaction.channel.id)] = {}
 
         for i in range(7):
             current_day = sunday + timedelta(days=i)
             day_name = current_day.strftime("%A")
             date_str = current_day.strftime("%m/%d")
-            msg = await interaction.channel.send(f"{day_name} {date_str}")
+            formatted_message = f"# {day_name} {date_str}"  # ✅ Bold + Large
+
+            msg = await interaction.channel.send(formatted_message)
             for emoji in emojis:
                 await msg.add_reaction(emoji)
 
