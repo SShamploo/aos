@@ -30,6 +30,7 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
             timestamp,
             user.name,
             str(user.id),
+            self.activision.value,
             self.platform.value,
             self.stream.value if self.stream.value else "N/A"
         ]
@@ -50,7 +51,7 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
 
             for idx, row in enumerate(rows[1:], start=2):  # Skip header
                 if len(row) >= 3 and row[2] == str(user.id):
-                    self.sheet.update(f"A{idx}:E{idx}", [values])
+                    self.sheet.update(f"A{idx}:F{idx}", [values])
                     updated = True
                     break
 
@@ -106,6 +107,28 @@ class PlayerInformation(commands.Cog):
         await channel.send(view=PlayerInfoButton(self.sheet))
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
+
+    @app_commands.command(name="userinformation", description="View a player's submitted info.")
+    @app_commands.describe(user="Select the Discord user")
+    async def userinformation(self, interaction: discord.Interaction, user: discord.User):
+        all_rows = self.sheet.get_all_values()
+        header = all_rows[0]
+        rows = all_rows[1:]
+
+        for row in rows:
+            if len(row) >= 4 and row[2] == str(user.id):
+                embed = discord.Embed(
+                    title=f"📋 Info for {user.display_name}",
+                    color=discord.Color.green()
+                )
+                embed.add_field(name="Activision ID", value=row[3], inline=False)
+                embed.add_field(name="Platform", value=row[4], inline=True)
+                embed.add_field(name="Streaming", value=row[5] if len(row) > 5 else "N/A", inline=True)
+                embed.set_footer(text="Fetched from playerinformation sheet")
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                return
+
+        await interaction.response.send_message("⚠️ No player info found for that user.", ephemeral=True)
 
 # ✅ Register persistent button view
 async def setup(bot):
