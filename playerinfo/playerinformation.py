@@ -78,11 +78,11 @@ class PlayerInformation(commands.Cog):
 
     @app_commands.command(name="playerinfoprompt", description="Post the player info submission image + button.")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)  # ✅ Prevents timeout error
+        await interaction.response.defer(ephemeral=True)
 
         channel = interaction.channel
 
-        # ❌ Delete any existing prompt messages from bot
+        # Delete previous prompts by bot (image or button)
         try:
             async for msg in channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (
@@ -92,12 +92,12 @@ class PlayerInformation(commands.Cog):
         except Exception as e:
             print(f"⚠️ Failed to clean previous prompt: {e}")
 
-        # 🖼️ Send image
+        # Send image
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
         await channel.send(file=file)
 
-        # 🔘 Send button
+        # Send button
         await channel.send(view=PlayerInfoButton(self.sheet))
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
