@@ -107,6 +107,31 @@ class PlayerInfo(commands.Cog):
             view=PlayerInfoButtonView(self.sheet)
         )
 
+    @app_commands.command(name="userinformation", description="Look up a user's player info")
+    @app_commands.describe(user="Select the user to look up")
+    async def userinformation(self, interaction: discord.Interaction, user: discord.User):
+        user_id = str(user.id)
+        rows = self.sheet.get_all_values()
+
+        result = None
+        for row in rows[1:]:  # Skip header
+            if len(row) >= 6 and row[2].strip() == user_id:
+                result = row
+                break
+
+        if result:
+            # Format info
+            timestamp, name, _, activision_id, platform, streaming_platform = result
+            embed = discord.Embed(title="🔍 Player Info Lookup", color=discord.Color.blurple())
+            embed.add_field(name="Discord", value=name, inline=False)
+            embed.add_field(name="Activision ID", value=activision_id, inline=False)
+            embed.add_field(name="Platform", value=platform, inline=False)
+            embed.add_field(name="Streaming Platform", value=streaming_platform or "N/A", inline=False)
+            embed.set_footer(text=f"Last updated: {timestamp}")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.response.send_message(f"⚠️ No info found for {user.mention}.", ephemeral=True)
+
 # Register the cog
 async def setup(bot):
     await bot.add_cog(PlayerInfo(bot))
