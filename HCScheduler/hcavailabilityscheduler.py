@@ -41,7 +41,6 @@ class HCAvailabilityScheduler(commands.Cog):
 
     @app_commands.command(name="hcavailabilityscheduler", description="Post availability days and add time emojis")
     async def hcavailabilityscheduler(self, interaction: discord.Interaction):
-        # ✅ Updated emoji list: 12AM instead of 12PM
         emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         emojis = []
 
@@ -57,14 +56,13 @@ class HCAvailabilityScheduler(commands.Cog):
         days_since_sunday = (today.weekday() + 1) % 7
         sunday = today - timedelta(days=days_since_sunday)
 
-        # ✅ Removed "📅 Weekly Availability" message
         self.sent_messages[str(interaction.channel.id)] = {}
 
         for i in range(7):
             current_day = sunday + timedelta(days=i)
-            day_name = current_day.strftime("%A")
+            day_name = current_day.strftime("%A").upper()  # ✅ ALL CAPS
             date_str = current_day.strftime("%m/%d")
-            formatted_message = f"# {day_name} {date_str}"  # ✅ Bold + Large
+            formatted_message = f"# {day_name} {date_str}"
 
             msg = await interaction.channel.send(formatted_message)
             for emoji in emojis:
@@ -74,14 +72,17 @@ class HCAvailabilityScheduler(commands.Cog):
 
         self.save_sent_messages()
 
-    @app_commands.command(name="deletehcavailability", description="Delete availability messages created by the bot.")
+    @app_commands.command(name="deletehcavailability", description="Delete availability messages and clear sheet data.")
     async def deletehcavailability(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         channel_id = str(interaction.channel.id)
         deleted = 0
 
         if channel_id in self.sent_messages:
-            for msg_id in list(self.sent_messages[channel_id]):
+            message_ids = list(self.sent_messages[channel_id].keys())
+
+            # ✅ Step 1: Delete tracked messages in Discord
+            for msg_id in message_ids:
                 try:
                     msg = await interaction.channel.fetch_message(int(msg_id))
                     await msg.delete()
@@ -93,11 +94,27 @@ class HCAvailabilityScheduler(commands.Cog):
                 except Exception as e:
                     print(f"⚠️ Failed to delete message {msg_id}: {e}")
 
+            # ✅ Step 2: Remove matching rows from Google Sheets
+            all_rows = self.sheet.get_all_values()
+            header = all_rows[0]
+            data_rows = all_rows[1:]
+
+            rows_to_keep = [header]
+            for row in data_rows:
+                if len(row) >= 5 and row[4] not in message_ids:
+                    rows_to_keep.append(row)
+
+            # Clear and rewrite the sheet
+            self.sheet.clear()
+            self.sheet.append_rows(rows_to_keep)
+
+            # ✅ Clear from local cache
             self.sent_messages[channel_id] = {}
             self.save_sent_messages()
-            await interaction.followup.send(f"🗑️ Deleted {deleted} availability message(s).", ephemeral=True)
+
+            await interaction.followup.send(f"🗑️ Deleted {deleted} message(s) and cleaned up Google Sheet.", ephemeral=True)
         else:
-            await interaction.followup.send("⚠️ No availability messages found to delete in this channel.", ephemeral=True)
+            await interaction.followup.send("⚠️ No tracked availability messages found in this channel.", ephemeral=True)
 
 # Required to register the cog
 async def setup(bot):
