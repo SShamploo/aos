@@ -9,11 +9,6 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
-LEAGUE_TABS = {
-    "HC": "hcavailability",
-    "AL": "alavailability"
-}
-
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -25,13 +20,13 @@ class AvailabilityScheduler(commands.Cog):
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS")
+        self.sheet = self.gc.open("AOS").worksheet("availability")  # ✅ Unified tab
 
     @app_commands.command(name="sendavailability", description="Send availability message (HC/AL)")
     async def sendavailability(self, interaction: discord.Interaction):
         await interaction.response.send_message("Select a League:", view=LeagueSelectView(self, "send"), ephemeral=True)
 
-    @app_commands.command(name="deleteavailability", description="Delete availability (HC/AL)")
+    @app_commands.command(name="deleteavailability", description="Delete availability messages from this channel (HC/AL)")
     async def deleteavailability(self, interaction: discord.Interaction):
         await interaction.response.send_message("Select a League to delete:", view=LeagueSelectView(self, "delete"), ephemeral=True)
 
@@ -53,7 +48,6 @@ class AvailabilityScheduler(commands.Cog):
         today = datetime.now().date()
         sunday = today - timedelta(days=(today.weekday() + 1) % 7)
 
-        # ❌ Removed "📅 HC Availability:" message
         self.sent_messages[league][interaction.channel.id] = {}
 
         for i in range(7):
@@ -78,13 +72,15 @@ class AvailabilityScheduler(commands.Cog):
             self.sent_messages[league][channel_id] = {}
 
         try:
-            tab = self.sheet.worksheet(LEAGUE_TABS[league])
-            all_rows = tab.get_all_values()
-            ids_to_delete = [i + 2 for i, row in enumerate(all_rows[1:]) if row[5] in self.sent_messages[league][channel_id]]
-            for i in reversed(ids_to_delete):
-                tab.delete_rows(i)
+            all_rows = self.sheet.get_all_values()
+            to_delete = [
+                i + 2 for i, row in enumerate(all_rows[1:])
+                if row[4] in self.sent_messages[league][channel_id] and row[6] == league
+            ]
+            for i in reversed(to_delete):
+                self.sheet.delete_rows(i)
         except Exception as e:
-            print(f"⚠️ Failed to clear sheet: {e}")
+            print(f"⚠️ Failed to clear sheet rows: {e}")
 
         await interaction.followup.send(f"🗑️ Deleted {deleted} message(s) and cleared Google Sheet for {league}.", ephemeral=True)
 
@@ -92,10 +88,9 @@ class AvailabilityScheduler(commands.Cog):
         await interaction.followup.send("Select a day to view:", view=DaySelectView(self, league), ephemeral=True)
 
     async def post_day_summary(self, interaction, league, day):
-        tab = self.sheet.worksheet(LEAGUE_TABS[league])
-        rows = tab.get_all_values()[1:]
+        rows = self.sheet.get_all_values()[1:]
+        relevant = [r for r in rows if r[5].startswith(day.upper()) and r[6] == league]
 
-        relevant = [r for r in rows if r[5].startswith(day.upper())]
         if not relevant:
             await interaction.followup.send(f"⚠️ No data found for {league} - {day}.", ephemeral=True)
             return
