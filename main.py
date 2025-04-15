@@ -20,8 +20,10 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix=None, intents=intents)
 
+# ✅ All cog extensions including AL availability
 initial_extensions = [
     "HCScheduler.hcavailabilityscheduler",
+    "ALScheduler.alavailabilityscheduler",  # ✅ newly added
     "Results.results",
     "ticketsystem.tickets",
     "activitylog.logging",
@@ -52,7 +54,7 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ REACTION ADDED: Google Sheet logging
+# ✅ EXISTING REACTION HANDLER FOR HC SYSTEM
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -68,7 +70,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     hc_cog = bot.get_cog("HCAvailabilityScheduler")
     if not hc_cog:
-        print("⚠️ HCAvailabilityScheduler cog not loaded yet.")
         return
 
     channel_id = str(payload.channel_id)
@@ -90,7 +91,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                     row[3].strip() == emoji and
                     row[4].strip() == message_id
                 ):
-                    print(f"⚠️ Duplicate reaction found — skipping log for {member.name}")
                     return
 
         hc_cog.sheet.append_row([
@@ -105,7 +105,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     except Exception as e:
         print(f"⚠️ Failed to write to Google Sheet: {e}")
 
-# ✅ REACTION REMOVED: Delete from Google Sheet
+# ✅ Reaction REMOVAL handler for HC system
 @bot.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -132,7 +132,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
         header = all_rows[0]
         data_rows = all_rows[1:]
 
-        for index, row in enumerate(data_rows, start=2):  # start=2 to match sheet row numbers
+        for index, row in enumerate(data_rows, start=2):
             if len(row) >= 6:
                 if (
                     row[2].strip() == str(payload.user_id) and
@@ -146,5 +146,5 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     except Exception as e:
         print(f"⚠️ Failed to remove row from Google Sheet: {e}")
 
-# Start bot
+# 🔁 Start the bot
 asyncio.run(main())
