@@ -90,8 +90,7 @@ class PlayerInfo(commands.Cog):
 
     @app_commands.command(name="playerinfoprompt", description="Submit your player info via a form")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)  # ✅ Prevent interaction timeout
-        await interaction.followup.send_modal(PlayerInfoModal(sheet=self.sheet))  # ✅ Launch modal
+        await interaction.response.send_modal(PlayerInfoModal(sheet=self.sheet))  # ✅ CORRECT method
 
 # Register cog
 async def setup(bot):
