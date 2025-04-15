@@ -82,9 +82,8 @@ async def handle_reaction_event(payload, event_type: str):
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # ✅ Load Google Sheet and match currentavailability entry
     try:
-        # Setup Sheets access
+        # Google Sheets setup
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
@@ -93,22 +92,22 @@ async def handle_reaction_event(payload, event_type: str):
         current_sheet = client.open("AOS").worksheet("currentavailability")
         availability_sheet = client.open("AOS").worksheet("availability")
 
-        rows = current_sheet.get_all_values()[1:]  # Skip header
-        entry = next((r for r in rows if r[1] == channel_id and r[2] == message_id), None)
+        current_rows = current_sheet.get_all_values()[1:]
+        matched_row = next((r for r in current_rows if r[1] == channel_id and r[2] == message_id), None)
 
-        if not entry:
-            return  # Message ID not found
+        if not matched_row:
+            return
 
-        league = entry[0]
-        message_text = entry[3]
+        league = matched_row[0]
+        message_text = matched_row[3]
 
-        # Check for duplicates in availability sheet
-        all_data = availability_sheet.get_all_values()
-        for row in all_data[1:]:
-            if len(row) >= 7 and row[2] == str(member.id) and row[3] == emoji and row[4] == message_id:
-                return  # Already logged
+        all_rows = availability_sheet.get_all_values()
 
         if event_type == "add":
+            for row in all_rows[1:]:
+                if len(row) >= 7 and row[2] == str(member.id) and row[3] == emoji and row[4] == message_id:
+                    return  # Already logged
+
             availability_sheet.append_row([
                 timestamp,
                 member.name,
@@ -121,14 +120,14 @@ async def handle_reaction_event(payload, event_type: str):
             print(f"✅ Logged ADD: {member.name} → {emoji} on {message_text} ({league})")
 
         elif event_type == "remove":
-            for index, row in enumerate(all_data[1:], start=2):
+            for index, row in enumerate(all_rows[1:], start=2):
                 if len(row) >= 7 and row[2] == str(payload.user_id) and row[3] == emoji and row[4] == message_id:
                     availability_sheet.delete_rows(index)
-                    print(f"🗑️ Removed: {emoji} by {member.name}")
+                    print(f"🗑️ Removed: {emoji} by {member.name} on {message_text}")
                     return
 
     except Exception as e:
         print(f"❌ Reaction tracking failed: {e}")
 
-# Start bot
+# 🔁 Start the bot
 asyncio.run(main())
