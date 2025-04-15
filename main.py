@@ -8,10 +8,10 @@ import traceback
 import asyncio
 from datetime import datetime
 
-# Load environment variables from .env or Render dashboard
+# Load environment variables
 load_dotenv()
 
-# Set up bot intents
+# Bot intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -20,10 +20,10 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix=None, intents=intents)
 
-# ✅ All cog extensions including AL availability
+# ✅ Cogs list
 initial_extensions = [
     "HCScheduler.hcavailabilityscheduler",
-    "ALScheduler.alavailabilityscheduler",  # ✅ newly added
+    "ALScheduler.alavailabilityscheduler",
     "Results.results",
     "ticketsystem.tickets",
     "activitylog.logging",
@@ -54,9 +54,27 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ EXISTING REACTION HANDLER FOR HC SYSTEM
+# ✅ HC Reaction Logger
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    await handle_reaction(payload, cog_name="HCAvailabilityScheduler")
+
+# ✅ AL Reaction Logger
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    await handle_reaction_removal(payload, cog_name="HCAvailabilityScheduler")
+
+# ✅ AL version
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    await handle_reaction(payload, cog_name="ALAvailabilityScheduler")
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    await handle_reaction_removal(payload, cog_name="ALAvailabilityScheduler")
+
+# 🔁 Shared logic
+async def handle_reaction(payload, cog_name):
     if payload.user_id == bot.user.id:
         return
 
@@ -68,8 +86,8 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if not member or member.bot:
         return
 
-    hc_cog = bot.get_cog("HCAvailabilityScheduler")
-    if not hc_cog:
+    cog = bot.get_cog(cog_name)
+    if not cog:
         return
 
     channel_id = str(payload.channel_id)
@@ -77,13 +95,13 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)
+    message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
 
     if not message_text:
         return
 
     try:
-        existing_rows = hc_cog.sheet.get_all_values()
+        existing_rows = cog.sheet.get_all_values()
         for row in existing_rows[1:]:
             if len(row) >= 6:
                 if (
@@ -91,9 +109,9 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                     row[3].strip() == emoji and
                     row[4].strip() == message_id
                 ):
-                    return
+                    return  # Duplicate
 
-        hc_cog.sheet.append_row([
+        cog.sheet.append_row([
             timestamp,
             member.name,
             str(member.id),
@@ -101,13 +119,12 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             message_id,
             message_text
         ])
-        print(f"✅ Logged: {member.name} reacted with {emoji} to '{message_text}'")
-    except Exception as e:
-        print(f"⚠️ Failed to write to Google Sheet: {e}")
+        print(f"✅ [{cog_name}] Logged: {member.name} reacted with {emoji} to '{message_text}'")
 
-# ✅ Reaction REMOVAL handler for HC system
-@bot.event
-async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    except Exception as e:
+        print(f"⚠️ Failed to write to Google Sheet for {cog_name}: {e}")
+
+async def handle_reaction_removal(payload, cog_name):
     if payload.user_id == bot.user.id:
         return
 
@@ -119,8 +136,8 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     if not member or member.bot:
         return
 
-    hc_cog = bot.get_cog("HCAvailabilityScheduler")
-    if not hc_cog:
+    cog = bot.get_cog(cog_name)
+    if not cog:
         return
 
     channel_id = str(payload.channel_id)
@@ -128,7 +145,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
 
     try:
-        all_rows = hc_cog.sheet.get_all_values()
+        all_rows = cog.sheet.get_all_values()
         header = all_rows[0]
         data_rows = all_rows[1:]
 
@@ -139,12 +156,12 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
                     row[3].strip() == emoji and
                     row[4].strip() == message_id
                 ):
-                    hc_cog.sheet.delete_rows(index)
-                    print(f"🗑️ Removed row for reaction: {emoji} by {member.name}")
+                    cog.sheet.delete_rows(index)
+                    print(f"🗑️ [{cog_name}] Removed row for reaction: {emoji} by {member.name}")
                     return
 
     except Exception as e:
-        print(f"⚠️ Failed to remove row from Google Sheet: {e}")
+        print(f"⚠️ Failed to remove row from Google Sheet for {cog_name}: {e}")
 
-# 🔁 Start the bot
+# 🔁 Start bot
 asyncio.run(main())
