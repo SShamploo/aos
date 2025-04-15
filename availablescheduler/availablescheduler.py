@@ -12,23 +12,50 @@ from oauth2client.service_account import ServiceAccountCredentials
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.sent_messages = {"HC": {}, "AL": {}}  # league → {channel_id: {message_id: message_text}}
+        self.sent_messages = {}  # {channel_id: {message_id: message_text}}
 
-        # ✅ Google Sheets setup and publicly exposed sheet
+        # ✅ Google Sheets setup and exposed sheet
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS").worksheet("availability")  # Must be assigned to self.sheet
+        self.sheet = self.gc.open("AOS").worksheet("availability")
 
     @app_commands.command(name="sendavailability", description="Send availability message (HC/AL)")
     async def sendavailability(self, interaction: discord.Interaction):
         await interaction.response.send_message("Select a League:", view=LeagueSelectView(self, "send"), ephemeral=True)
 
-    @app_commands.command(name="deleteavailability", description="Delete availability messages from this channel (HC/AL)")
+    @app_commands.command(name="deleteavailability", description="Delete availability messages from this channel")
     async def deleteavailability(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Select a League to delete:", view=LeagueSelectView(self, "delete"), ephemeral=True)
+        await interaction.response.send_message("Deleting availability messages in this channel...", ephemeral=True)
+
+        deleted = 0
+        channel_id = interaction.channel.id
+        if channel_id in self.sent_messages:
+            for msg_id in self.sent_messages[channel_id]:
+                try:
+                    msg = await interaction.channel.fetch_message(msg_id)
+                    await msg.delete()
+                    deleted += 1
+                except Exception:
+                    continue
+            self.sent_messages[channel_id] = {}
+
+        # Delete rows in Google Sheet that match message IDs from this channel
+        try:
+            all_rows = self.sheet.get_all_values()
+            msg_ids = self.sent_messages.get(channel_id, {}).keys()
+            to_delete = [
+                i + 2 for i, row in enumerate(all_rows[1:])
+                if row[4] in msg_ids
+            ]
+            for i in reversed(to_delete):
+                self.sheet.delete_rows(i)
+        except Exception as e:
+            print(f"⚠️ Failed to delete from Google Sheet: {e}")
+
+        await interaction.followup.send(f"🗑️ Deleted {deleted} messages and Google Sheet rows.", ephemeral=True)
 
     @app_commands.command(name="availability", description="View availability by league and day")
     async def availability(self, interaction: discord.Interaction):
@@ -48,41 +75,15 @@ class AvailabilityScheduler(commands.Cog):
         today = datetime.now().date()
         sunday = today - timedelta(days=(today.weekday() + 1) % 7)
 
-        self.sent_messages[league][interaction.channel.id] = {}
+        self.sent_messages[interaction.channel.id] = {}
 
         for i in range(7):
-            day = (sunday + timedelta(days=i))
-            label = f"{day.strftime('%A').upper()} {day.strftime('%m/%d')}"
+            day = sunday + timedelta(days=i)
+            label = f"{day.strftime('%A').upper()} {day.strftime('%m/%d')} | {league}"
             msg = await interaction.channel.send(f"**{label}**")
             for emoji in emojis:
                 await msg.add_reaction(emoji)
-            self.sent_messages[league][interaction.channel.id][str(msg.id)] = label
-
-    async def handle_delete(self, interaction, league):
-        deleted = 0
-        channel_id = interaction.channel.id
-        if channel_id in self.sent_messages[league]:
-            for msg_id in self.sent_messages[league][channel_id]:
-                try:
-                    msg = await interaction.channel.fetch_message(msg_id)
-                    await msg.delete()
-                    deleted += 1
-                except Exception:
-                    continue
-            self.sent_messages[league][channel_id] = {}
-
-        try:
-            all_rows = self.sheet.get_all_values()
-            to_delete = [
-                i + 2 for i, row in enumerate(all_rows[1:])
-                if row[4] in self.sent_messages[league][channel_id] and row[6] == league
-            ]
-            for i in reversed(to_delete):
-                self.sheet.delete_rows(i)
-        except Exception as e:
-            print(f"⚠️ Failed to clear sheet rows: {e}")
-
-        await interaction.followup.send(f"🗑️ Deleted {deleted} message(s) and cleared Google Sheet for {league}.", ephemeral=True)
+            self.sent_messages[interaction.channel.id][str(msg.id)] = label
 
     async def handle_view(self, interaction, league):
         await interaction.followup.send("Select a day to view:", view=DaySelectView(self, league), ephemeral=True)
@@ -134,7 +135,7 @@ class LeagueSelectView(discord.ui.View):
         if self.action == "send":
             await self.cog.handle_send(interaction, league)
         elif self.action == "delete":
-            await self.cog.handle_delete(interaction, league)
+            await self.cog.deleteavailability(interaction)
         elif self.action == "view":
             await self.cog.handle_view(interaction, league)
 
