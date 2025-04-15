@@ -86,6 +86,7 @@ class PlayerInformation(commands.Cog):
         creds_json = json.loads(creds)
         self.client = gspread.authorize(ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope))
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
+        self.users_sheet = self.client.open("AOS").worksheet("Users")
 
     @app_commands.command(name="playerinfoprompt", description="Post the player info submission image + button.")
     async def playerinfoprompt(self, interaction: discord.Interaction):
@@ -112,7 +113,6 @@ class PlayerInformation(commands.Cog):
     @app_commands.describe(user="Select the Discord user")
     async def userinformation(self, interaction: discord.Interaction, user: discord.User):
         all_rows = self.sheet.get_all_values()
-        header = all_rows[0]
         rows = all_rows[1:]
 
         for row in rows:
@@ -130,7 +130,42 @@ class PlayerInformation(commands.Cog):
 
         await interaction.response.send_message("⚠️ No player info found for that user.", ephemeral=True)
 
-# ✅ Register persistent button view
+    @app_commands.command(name="syncusers", description="Sync current Discord users and remove outdated entries.")
+    async def syncusers(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild = interaction.guild
+        if not guild:
+            await interaction.followup.send("⚠️ Command must be run in a server.")
+            return
+
+        members = [m for m in guild.members if not m.bot]
+        user_data = [[str(m), str(m.id)] for m in members]
+
+        # Clear and update Users sheet
+        self.users_sheet.clear()
+        self.users_sheet.append_row(["Username", "User ID"])
+        self.users_sheet.append_rows(user_data)
+
+        # Build set of valid user IDs
+        valid_ids = set(str(m.id) for m in members)
+
+        # Get current playerinformation rows
+        all_rows = self.sheet.get_all_values()
+        rows = all_rows[1:]
+        deleted = 0
+
+        for i in reversed(range(len(rows))):  # Reverse to avoid shifting rows
+            row = rows[i]
+            if len(row) >= 3 and row[2] not in valid_ids:
+                self.sheet.delete_rows(i + 2)  # Offset for header
+                deleted += 1
+
+        await interaction.followup.send(
+            f"✅ Synced {len(user_data)} users to 'Users' sheet.\n🗑️ Removed {deleted} outdated entries from playerinformation.",
+            ephemeral=True
+        )
+
+# ✅ Register persistent view
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
