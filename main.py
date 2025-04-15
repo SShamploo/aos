@@ -31,7 +31,7 @@ initial_extensions = [
     "vc_autochannel.vc_autochannel",
     "playerinfo.playerinformation",
     "matchscheduler.matchscheduler",
-    "availablescheduler.availablescheduler"  # ✅ NEW: Combined HC/AL Availability Cog
+    "availablescheduler.availablescheduler"
 ]
 
 async def load_cogs():
@@ -67,7 +67,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="remove")
 
-# 🔁 Shared logic for HC/AL/Dropdown availability tracking
+# 🔁 Unified reaction handling
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -89,47 +89,78 @@ async def handle_reaction_event(payload, event_type: str):
         message_id = str(payload.message_id)
         emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # ✅ Properly fetch message_text across all cogs
         message_text = None
+        league = None
 
+        # ✅ Handle unified structure
         if cog_name == "AvailabilityScheduler":
-            for league_dict in cog.sent_messages.values():  # "HC" and "AL"
+            for league_key, league_dict in cog.sent_messages.items():
                 if channel_id in league_dict and message_id in league_dict[channel_id]:
                     message_text = league_dict[channel_id][message_id]
+                    league = league_key
                     break
         else:
             message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
 
         if not message_text:
-            continue  # Skip if not a tracked message
+            continue
 
         try:
-            sheet = cog.sheet
-            all_rows = sheet.get_all_values()
-            rows = all_rows[1:]
+            # ✅ Unified sheet (AvailabilityScheduler)
+            if cog_name == "AvailabilityScheduler":
+                sheet = cog.sheet
+                all_rows = sheet.get_all_values()
+                rows = all_rows[1:]
 
-            if event_type == "add":
-                for row in rows:
-                    if len(row) >= 6 and row[2].strip() == str(member.id) and row[3].strip() == emoji and row[4].strip() == message_id:
-                        return  # Already logged
+                if event_type == "add":
+                    for row in rows:
+                        if len(row) >= 7 and row[2].strip() == str(member.id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                            return  # Already logged
 
-                sheet.append_row([
-                    timestamp,
-                    member.name,
-                    str(member.id),
-                    emoji,
-                    message_id,
-                    message_text
-                ])
-                print(f"✅ [{cog_name}] Logged ADD: {member.name} → {emoji} on {message_text}")
+                    sheet.append_row([
+                        timestamp,
+                        member.name,
+                        str(member.id),
+                        emoji,
+                        message_id,
+                        message_text,
+                        league
+                    ])
+                    print(f"✅ [AvailabilityScheduler] Logged ADD: {member.name} → {emoji} on {message_text} ({league})")
 
-            elif event_type == "remove":
-                for index, row in enumerate(rows, start=2):
-                    if len(row) >= 6 and row[2].strip() == str(payload.user_id) and row[3].strip() == emoji and row[4].strip() == message_id:
-                        sheet.delete_rows(index)
-                        print(f"🗑️ [{cog_name}] Removed: {emoji} by {member.name}")
-                        return
+                elif event_type == "remove":
+                    for index, row in enumerate(rows, start=2):
+                        if len(row) >= 7 and row[2].strip() == str(payload.user_id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                            sheet.delete_rows(index)
+                            print(f"🗑️ [AvailabilityScheduler] Removed: {emoji} by {member.name}")
+                            return
+
+            else:
+                # Legacy cog reaction logging
+                sheet = cog.sheet
+                all_rows = sheet.get_all_values()
+                rows = all_rows[1:]
+
+                if event_type == "add":
+                    for row in rows:
+                        if len(row) >= 6 and row[2].strip() == str(member.id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                            return
+                    sheet.append_row([
+                        timestamp,
+                        member.name,
+                        str(member.id),
+                        emoji,
+                        message_id,
+                        message_text
+                    ])
+                    print(f"✅ [{cog_name}] Logged ADD: {member.name} → {emoji} on {message_text}")
+
+                elif event_type == "remove":
+                    for index, row in enumerate(rows, start=2):
+                        if len(row) >= 6 and row[2].strip() == str(payload.user_id) and row[3].strip() == emoji and row[4].strip() == message_id:
+                            sheet.delete_rows(index)
+                            print(f"🗑️ [{cog_name}] Removed: {emoji} by {member.name}")
+                            return
 
         except Exception as e:
             print(f"⚠️ [{cog_name}] Failed to handle {event_type} reaction: {e}")
