@@ -7,10 +7,14 @@ from dotenv import load_dotenv
 import traceback
 import asyncio
 from datetime import datetime
+import json
+import base64
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
+# Load environment variables
 load_dotenv()
 
-# Bot intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -19,7 +23,6 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix=None, intents=intents)
 
-# ✅ Load extensions (no legacy cogs)
 initial_extensions = [
     "Results.results",
     "ticketsystem.tickets",
@@ -47,7 +50,7 @@ async def on_ready():
         synced = await bot.tree.sync(guild=None)
         print(f"✅ Synced {len(synced)} global slash command(s)")
     except Exception as e:
-        print(f"❌ Slash command sync failed: {e}")
+        print(f"❌ Failed to sync slash commands: {e}")
         traceback.print_exc()
 
 async def main():
@@ -62,7 +65,6 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, "remove")
 
-# 🔁 Unified handler for availability reactions
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -75,36 +77,39 @@ async def handle_reaction_event(payload, event_type: str):
     if not member or member.bot:
         return
 
-    cog = bot.get_cog("AvailabilityScheduler")
-    if not cog:
-        print("❌ AvailabilityScheduler cog not loaded.")
-        return
-
     channel_id = str(payload.channel_id)
     message_id = str(payload.message_id)
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
-    if not message_text or " | " not in message_text:
-        return
-
+    # ✅ Load Google Sheet and match currentavailability entry
     try:
-        league = message_text.split(" | ")[1]
-    except IndexError:
-        league = "UNKNOWN"
+        # Setup Sheets access
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
+        client = gspread.authorize(creds)
 
-    try:
-        sheet = cog.sheet
-        all_rows = sheet.get_all_values()
-        rows = all_rows[1:]
+        current_sheet = client.open("AOS").worksheet("currentavailability")
+        availability_sheet = client.open("AOS").worksheet("availability")
+
+        rows = current_sheet.get_all_values()[1:]  # Skip header
+        entry = next((r for r in rows if r[1] == channel_id and r[2] == message_id), None)
+
+        if not entry:
+            return  # Message ID not found
+
+        league = entry[0]
+        message_text = entry[3]
+
+        # Check for duplicates in availability sheet
+        all_data = availability_sheet.get_all_values()
+        for row in all_data[1:]:
+            if len(row) >= 7 and row[2] == str(member.id) and row[3] == emoji and row[4] == message_id:
+                return  # Already logged
 
         if event_type == "add":
-            for row in rows:
-                if len(row) >= 7 and row[2] == str(member.id) and row[3] == emoji and row[4] == message_id:
-                    return  # Already logged
-
-            sheet.append_row([
+            availability_sheet.append_row([
                 timestamp,
                 member.name,
                 str(member.id),
@@ -116,14 +121,14 @@ async def handle_reaction_event(payload, event_type: str):
             print(f"✅ Logged ADD: {member.name} → {emoji} on {message_text} ({league})")
 
         elif event_type == "remove":
-            for index, row in enumerate(rows, start=2):
+            for index, row in enumerate(all_data[1:], start=2):
                 if len(row) >= 7 and row[2] == str(payload.user_id) and row[3] == emoji and row[4] == message_id:
-                    sheet.delete_rows(index)
+                    availability_sheet.delete_rows(index)
                     print(f"🗑️ Removed: {emoji} by {member.name}")
                     return
 
     except Exception as e:
-        print(f"❌ Google Sheets logging failed: {e}")
+        print(f"❌ Reaction tracking failed: {e}")
 
-# 🔁 Start the bot
+# Start bot
 asyncio.run(main())
