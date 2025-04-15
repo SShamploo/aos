@@ -61,7 +61,11 @@ class PlayerInfoButton(discord.ui.View):
         super().__init__(timeout=None)
         self.sheet = sheet
 
-    @discord.ui.button(label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", style=discord.ButtonStyle.danger, custom_id="player_info_button")
+    @discord.ui.button(
+        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        style=discord.ButtonStyle.danger,
+        custom_id="player_info_button"  # ✅ Required for persistent views
+    )
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerInfoModal(self.sheet))
 
@@ -82,7 +86,7 @@ class PlayerInformation(commands.Cog):
 
         channel = interaction.channel
 
-        # Delete previous bot prompts
+        # Delete any previous bot prompt (image/button)
         try:
             async for msg in channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
@@ -95,13 +99,15 @@ class PlayerInformation(commands.Cog):
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
         await channel.send(file=file)
 
-        # Send button view
+        # Send button
         await channel.send(view=PlayerInfoButton(self.sheet))
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
-# ✅ Register persistent view on bot load
+# ✅ REGISTER PERSISTENT VIEW ON STARTUP
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
-    bot.add_view(PlayerInfoButton(cog.sheet))  # ✅ Keeps view active after restart
+
+    # ✅ Register persistent view instance
+    bot.add_view(PlayerInfoButton(cog.sheet))
