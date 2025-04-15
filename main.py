@@ -52,7 +52,7 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ Updated: Proper emoji name + duplicate prevention
+# ✅ REACTION TRACKING FIXED FOR MESSAGE TEXT PULLING
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -74,13 +74,12 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     channel_id = str(payload.channel_id)
     message_id = str(payload.message_id)
 
-    # ✅ Extract emoji name
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)
+    message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)  # ✅ fixed lookup with str keys
 
     if not message_text:
-        return  # Not tracked
+        return  # Not a tracked message
 
     try:
         existing_rows = hc_cog.sheet.get_all_values()
