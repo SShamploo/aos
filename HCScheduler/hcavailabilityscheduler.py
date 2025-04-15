@@ -10,6 +10,7 @@ import gspread
 import atexit
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
+from typing import Literal
 
 class HCAvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
@@ -62,15 +63,14 @@ class HCAvailabilityScheduler(commands.Cog):
 
         for i in range(7):
             current_day = sunday + timedelta(days=i)
-            day_name = current_day.strftime("%A").upper()  # ✅ All caps
+            day_name = current_day.strftime("%A").upper()
             date_str = current_day.strftime("%m/%d")
-            formatted_message = f"# {day_name} {date_str}"  # ✅ Display full in Discord
+            formatted_message = f"# {day_name} {date_str}"
 
             msg = await interaction.channel.send(formatted_message)
             for emoji in emojis:
                 await msg.add_reaction(emoji)
 
-            # ✅ Save only day name to log to the sheet
             self.sent_messages[str(interaction.channel.id)][str(msg.id)] = day_name
 
         self.save_sent_messages()
@@ -84,7 +84,6 @@ class HCAvailabilityScheduler(commands.Cog):
         if channel_id in self.sent_messages:
             message_ids = list(self.sent_messages[channel_id].keys())
 
-            # ✅ Step 1: Delete tracked messages in Discord
             for msg_id in message_ids:
                 try:
                     msg = await interaction.channel.fetch_message(int(msg_id))
@@ -97,7 +96,6 @@ class HCAvailabilityScheduler(commands.Cog):
                 except Exception as e:
                     print(f"⚠️ Failed to delete message {msg_id}: {e}")
 
-            # ✅ Step 2: Remove matching rows from Google Sheets
             all_rows = self.sheet.get_all_values()
             header = all_rows[0]
             data_rows = all_rows[1:]
@@ -116,6 +114,65 @@ class HCAvailabilityScheduler(commands.Cog):
             await interaction.followup.send(f"🗑️ Deleted {deleted} message(s) and cleaned up Google Sheet.", ephemeral=True)
         else:
             await interaction.followup.send("⚠️ No tracked availability messages found in this channel.", ephemeral=True)
+
+    @app_commands.command(name="hcavailability", description="Get HC availability for a selected day")
+    @app_commands.describe(day="Select a day")
+    @app_commands.choices(day=[
+        app_commands.Choice(name="Sunday", value="SUNDAY"),
+        app_commands.Choice(name="Monday", value="MONDAY"),
+        app_commands.Choice(name="Tuesday", value="TUESDAY"),
+        app_commands.Choice(name="Wednesday", value="WEDNESDAY"),
+        app_commands.Choice(name="Thursday", value="THURSDAY"),
+        app_commands.Choice(name="Friday", value="FRIDAY"),
+        app_commands.Choice(name="Saturday", value="SATURDAY"),
+    ])
+    async def hcavailability(self, interaction: discord.Interaction, day: app_commands.Choice[str]):
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            data = self.sheet.get_all_values()
+            header = data[0]
+            rows = data[1:]
+
+            idx_user = header.index("User ID")
+            idx_emoji = header.index("Emoji")
+            idx_message_text = header.index("Message Text")
+
+            time_order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
+
+            user_data = {}
+            for row in rows:
+                if len(row) < 6:
+                    continue
+                if row[idx_message_text].strip().upper() == day.value:
+                    user_id = row[idx_user].strip()
+                    emoji = row[idx_emoji].strip()
+                    if user_id not in user_data:
+                        user_data[user_id] = []
+                    user_data[user_id].append(emoji)
+
+            if not user_data:
+                await interaction.followup.send(f"⚠️ No data found for **{day.value}**.", ephemeral=True)
+                return
+
+            for user in user_data:
+                user_data[user] = [e for e in time_order if e in user_data[user]]
+
+            output = [f"**{day.value}**\n"]
+            for user_id, emojis in user_data.items():
+                emoji_line = ', '.join(f'"{e}"' for e in emojis)
+                output.append(f"<@{user_id}>: {emoji_line}")
+
+            channel = discord.utils.get(interaction.guild.text_channels, name="availability")
+            if channel:
+                await channel.send("\n".join(output))
+                await interaction.followup.send("✅ Availability summary posted to #availability", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ Could not find #availability channel.", ephemeral=True)
+
+        except Exception as e:
+            print(f"⚠️ Error processing /hcavailability: {e}")
+            await interaction.followup.send("❌ An error occurred while fetching availability.", ephemeral=True)
 
 # Required to register the cog
 async def setup(bot):
