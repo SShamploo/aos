@@ -63,7 +63,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, "remove")
 
-# 🔁 Main handler for unified availability system
+# 🔁 Final version with league extraction and correct key matching
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -78,14 +78,14 @@ async def handle_reaction_event(payload, event_type: str):
 
     cog = bot.get_cog("AvailabilityScheduler")
     if not cog:
+        print("❌ Cog not found.")
         return
 
-    channel_id = str(payload.channel_id)
-    message_id = str(payload.message_id)
+    channel_id = str(payload.channel_id)  # ✅ FIXED
+    message_id = str(payload.message_id)  # ✅ FIXED
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # 📦 Extract message text and league
     message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
     if not message_text or " | " not in message_text:
         return
