@@ -57,17 +57,17 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ Combined Reaction ADD Handler (for HC + AL only)
+# ✅ Combined Reaction ADD Handler (for HC + AL + Dropdown Availability)
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="add")
 
-# ✅ Combined Reaction REMOVE Handler (for HC + AL only)
+# ✅ Combined Reaction REMOVE Handler (for HC + AL + Dropdown Availability)
 @bot.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="remove")
 
-# 🔁 Shared logic for HC/AL availability tracking only
+# 🔁 Shared logic for availability reaction tracking
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -80,11 +80,13 @@ async def handle_reaction_event(payload, event_type: str):
     if not member or member.bot:
         return
 
-    for cog_name in ["HCAvailabilityScheduler", "ALAvailabilityScheduler"]:
+    # ✅ Check all availability-related cogs
+    for cog_name in ["HCAvailabilityScheduler", "ALAvailabilityScheduler", "AvailabilityScheduler"]:
         cog = bot.get_cog(cog_name)
         if not cog:
             continue
 
+        # Match against the tracked messages
         channel_id = str(payload.channel_id)
         message_id = str(payload.message_id)
         emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
@@ -92,7 +94,7 @@ async def handle_reaction_event(payload, event_type: str):
         message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
 
         if not message_text:
-            continue
+            continue  # Not one of this cog's tracked messages
 
         try:
             sheet = cog.sheet
