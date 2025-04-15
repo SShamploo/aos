@@ -14,13 +14,13 @@ class AvailabilityScheduler(commands.Cog):
         self.bot = bot
         self.sent_messages = {"HC": {}, "AL": {}}  # league → {channel_id: {message_id: message_text}}
 
-        # Google Sheets setup
+        # ✅ Google Sheets setup and publicly exposed sheet
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS").worksheet("availability")  # ✅ Unified tab
+        self.sheet = self.gc.open("AOS").worksheet("availability")  # Must be assigned to self.sheet
 
     @app_commands.command(name="sendavailability", description="Send availability message (HC/AL)")
     async def sendavailability(self, interaction: discord.Interaction):
@@ -156,4 +156,3 @@ class DaySelectView(discord.ui.View):
 
 async def setup(bot):
     await bot.add_cog(AvailabilityScheduler(bot))
-
