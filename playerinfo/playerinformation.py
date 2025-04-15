@@ -51,7 +51,7 @@ class PlayerInfoButton(discord.ui.View):
         super().__init__(timeout=None)
         self.sheet = sheet
 
-    @discord.ui.button(label="AOS", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀", style=discord.ButtonStyle.danger)
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerInfoModal(self.sheet))
 
@@ -71,7 +71,6 @@ class PlayerInformation(commands.Cog):
     async def playerinfoprompt(self, interaction: discord.Interaction):
         channel = interaction.channel
 
-        # Delete previous prompt
         if self.last_prompt_id:
             try:
                 prev = await channel.fetch_message(self.last_prompt_id)
@@ -79,7 +78,7 @@ class PlayerInformation(commands.Cog):
             except:
                 pass
 
-        # Send image (must be saved in same folder as this script)
+        # Send local image file (must exist in same folder)
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
         image_msg = await channel.send(file=file)
