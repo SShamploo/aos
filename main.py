@@ -99,7 +99,8 @@ async def handle_reaction_event(payload, event_type: str):
             return
 
         league = matched_row[0]
-        message_text = matched_row[3]
+        full_text = matched_row[3]
+        message_text = full_text.split()[0].upper()  # ✅ Only "SUNDAY", "MONDAY", etc.
 
         all_rows = availability_sheet.get_all_values()
 
