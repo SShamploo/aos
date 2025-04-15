@@ -9,12 +9,12 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-# Final Modal with platform as select INSIDE the modal
 class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
     def __init__(self, sheet):
         super().__init__()
         self.sheet = sheet
 
+        # Inputs
         self.activision_id = discord.ui.TextInput(
             label="Activision ID",
             placeholder="Enter your Activision ID",
@@ -25,21 +25,28 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
             placeholder="Twitch, Kick, etc. or leave blank",
             required=False
         )
+
         self.add_item(self.activision_id)
         self.add_item(self.streaming_platform)
 
-        self.platform_select = discord.ui.Select(
-            placeholder="Select your platform...",
+        # Platform Dropdown inside the modal
+        self.platform_dropdown = discord.ui.Select(
+            placeholder="Select your platform",
             options=[
                 discord.SelectOption(label="PC", value="PC"),
                 discord.SelectOption(label="PlayStation", value="PlayStation"),
                 discord.SelectOption(label="Xbox", value="Xbox")
             ]
         )
-        self.add_item(self.platform_select)
+        self.platform = None
+        self.platform_dropdown.callback = self.set_platform
+        self.add_item(self.platform_dropdown)
+
+    async def set_platform(self, interaction: discord.Interaction):
+        self.platform = self.platform_dropdown.values[0]
 
     async def on_submit(self, interaction: discord.Interaction):
-        selected_platform = self.platform_select.values[0]
+        self.platform = self.platform or self.platform_dropdown.values[0]
 
         info_channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
         if not info_channel:
@@ -49,7 +56,7 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
         embed = discord.Embed(title="📝 Player Info Submission", color=discord.Color.green())
         embed.add_field(name="Discord Username", value=interaction.user.mention, inline=False)
         embed.add_field(name="Activision ID", value=self.activision_id.value, inline=False)
-        embed.add_field(name="Platform", value=selected_platform, inline=False)
+        embed.add_field(name="Platform", value=self.platform, inline=False)
         embed.add_field(name="Streaming Platform", value=self.streaming_platform.value or "N/A", inline=False)
 
         await info_channel.send(embed=embed)
@@ -62,7 +69,7 @@ class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
                 str(interaction.user),
                 str(interaction.user.id),
                 self.activision_id.value,
-                selected_platform,
+                self.platform,
                 self.streaming_platform.value or "N/A"
             ])
         except Exception as e:
@@ -72,7 +79,7 @@ class PlayerInfo(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Google Sheets Setup
+        # ✅ Google Sheets setup
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -81,10 +88,11 @@ class PlayerInfo(commands.Cog):
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("AOS").worksheet("playerinformation")
 
-    @app_commands.command(name="playerinfoprompt", description="Submit player information form")
+    @app_commands.command(name="playerinfoprompt", description="Submit your player info via a form")
     async def playerinfoprompt(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(PlayerInfoModal(sheet=self.sheet))
+        await interaction.response.defer(ephemeral=True)  # ✅ Prevent interaction timeout
+        await interaction.followup.send_modal(PlayerInfoModal(sheet=self.sheet))  # ✅ Launch modal
 
-# Setup
+# Register cog
 async def setup(bot):
     await bot.add_cog(PlayerInfo(bot))
