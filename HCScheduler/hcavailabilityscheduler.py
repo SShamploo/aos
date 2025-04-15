@@ -52,7 +52,6 @@ class HCAvailabilityScheduler(commands.Cog):
                 await interaction.response.send_message(f"Emoji '{name}' not found in this server.", ephemeral=True)
                 return
 
-        # ✅ Prevent Discord timeout error
         await interaction.response.defer(ephemeral=True)
 
         today = datetime.now().date()
@@ -65,13 +64,14 @@ class HCAvailabilityScheduler(commands.Cog):
             current_day = sunday + timedelta(days=i)
             day_name = current_day.strftime("%A").upper()  # ✅ All caps
             date_str = current_day.strftime("%m/%d")
-            formatted_message = f"# {day_name} {date_str}"
+            formatted_message = f"# {day_name} {date_str}"  # ✅ Display full in Discord
 
             msg = await interaction.channel.send(formatted_message)
             for emoji in emojis:
                 await msg.add_reaction(emoji)
 
-            self.sent_messages[str(interaction.channel.id)][str(msg.id)] = f"{day_name} {date_str}"
+            # ✅ Save only day name to log to the sheet
+            self.sent_messages[str(interaction.channel.id)][str(msg.id)] = day_name
 
         self.save_sent_messages()
 
@@ -107,11 +107,9 @@ class HCAvailabilityScheduler(commands.Cog):
                 if len(row) >= 5 and row[4] not in message_ids:
                     rows_to_keep.append(row)
 
-            # Clear and rewrite the sheet
             self.sheet.clear()
             self.sheet.append_rows(rows_to_keep)
 
-            # ✅ Clear from local cache
             self.sent_messages[channel_id] = {}
             self.save_sent_messages()
 
