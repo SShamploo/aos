@@ -53,7 +53,7 @@ class AvailabilityScheduler(commands.Cog):
         today = datetime.now().date()
         sunday = today - timedelta(days=(today.weekday() + 1) % 7)
 
-        await interaction.followup.send(f"📅 {league} Availability:", ephemeral=False)
+        # ❌ Removed "📅 HC Availability:" message
         self.sent_messages[league][interaction.channel.id] = {}
 
         for i in range(7):
@@ -120,7 +120,6 @@ class AvailabilityScheduler(commands.Cog):
         else:
             await interaction.followup.send(result, ephemeral=True)
 
-# ---------- League Dropdown ----------
 class LeagueSelectView(discord.ui.View):
     def __init__(self, cog, action):
         super().__init__(timeout=30)
@@ -144,7 +143,6 @@ class LeagueSelectView(discord.ui.View):
         elif self.action == "view":
             await self.cog.handle_view(interaction, league)
 
-# ---------- Day Dropdown ----------
 class DaySelectView(discord.ui.View):
     def __init__(self, cog, league):
         super().__init__(timeout=30)
@@ -161,6 +159,5 @@ class DaySelectView(discord.ui.View):
         day = select.values[0]
         await self.cog.post_day_summary(interaction, self.league, day)
 
-# ---------- Setup ----------
 async def setup(bot):
     await bot.add_cog(AvailabilityScheduler(bot))
