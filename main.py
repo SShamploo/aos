@@ -57,17 +57,17 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# ✅ Combined Reaction ADD Handler (for HC + AL + Dropdown Availability)
+# ✅ Combined Reaction ADD Handler
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="add")
 
-# ✅ Combined Reaction REMOVE Handler (for HC + AL + Dropdown Availability)
+# ✅ Combined Reaction REMOVE Handler
 @bot.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     await handle_reaction_event(payload, event_type="remove")
 
-# 🔁 Shared logic for availability reaction tracking
+# 🔁 Shared logic for HC/AL/Dropdown availability tracking
 async def handle_reaction_event(payload, event_type: str):
     if payload.user_id == bot.user.id:
         return
@@ -80,21 +80,29 @@ async def handle_reaction_event(payload, event_type: str):
     if not member or member.bot:
         return
 
-    # ✅ Check all availability-related cogs
     for cog_name in ["HCAvailabilityScheduler", "ALAvailabilityScheduler", "AvailabilityScheduler"]:
         cog = bot.get_cog(cog_name)
         if not cog:
             continue
 
-        # Match against the tracked messages
         channel_id = str(payload.channel_id)
         message_id = str(payload.message_id)
         emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
+
+        # ✅ Properly fetch message_text across all cogs
+        message_text = None
+
+        if cog_name == "AvailabilityScheduler":
+            for league_dict in cog.sent_messages.values():  # "HC" and "AL"
+                if channel_id in league_dict and message_id in league_dict[channel_id]:
+                    message_text = league_dict[channel_id][message_id]
+                    break
+        else:
+            message_text = cog.sent_messages.get(channel_id, {}).get(message_id)
 
         if not message_text:
-            continue  # Not one of this cog's tracked messages
+            continue  # Skip if not a tracked message
 
         try:
             sheet = cog.sheet
