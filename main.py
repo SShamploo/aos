@@ -57,7 +57,7 @@ async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# 👇 REACTION TRACKING FOR AVAILABILITY MESSAGES WITH DUPLICATE CHECKING 👇
+# 👇 REACTION TRACKING WITH EMOJI NAME + DUPLICATE CHECK 👇
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -78,30 +78,28 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     channel_id = payload.channel_id
     message_id = payload.message_id
-    emoji = payload.emoji.name if hasattr(payload.emoji, "name") else str(payload.emoji)
+
+    # ✅ Extract emoji name only
+    emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)
 
     if not message_text:
-        return  # Not a tracked message
+        return  # Not one of the tracked messages
 
     try:
-        # ✅ PREVENT DUPLICATE ENTRIES
+        # ✅ Check for duplicates before logging
         existing_rows = hc_cog.sheet.get_all_values()
-        headers = existing_rows[0] if existing_rows else []
-        rows = existing_rows[1:] if len(existing_rows) > 1 else []
+        for row in existing_rows[1:]:  # Skip headers
+            if len(row) >= 6:
+                uid = row[2].strip()
+                em = row[3].strip()
+                msg = row[4].strip()
+                if uid == str(member.id) and em == emoji and msg == str(message_id):
+                    print(f"⚠️ Duplicate reaction found — skipping log for {member.name}")
+                    return
 
-        for row in rows:
-            if (
-                len(row) >= 6 and
-                row[2] == str(member.id) and  # User ID
-                row[3] == emoji and           # Emoji name
-                row[4] == str(message_id)     # Message ID
-            ):
-                print(f"⚠️ Duplicate reaction found — skipping log for {member.name}")
-                return
-
-        # Append if not duplicate
+        # ✅ Log to Google Sheets
         hc_cog.sheet.append_row([
             timestamp,
             member.name,
@@ -110,7 +108,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
             str(message_id),
             message_text
         ])
-        print(f"✅ Logged reaction: {member.name} reacted with {emoji} to '{message_text}'")
+        print(f"✅ Logged: {member.name} reacted with {emoji} to '{message_text}'")
     except Exception as e:
         print(f"⚠️ Failed to write to Google Sheet: {e}")
 
