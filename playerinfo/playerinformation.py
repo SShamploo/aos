@@ -7,8 +7,9 @@ import base64
 import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
 
-class PlayerInfoModal(discord.ui.Modal, title="Fill out your information"):
+class PlayerInfoModal(discord.ui.Modal, title="🎮 Submit Your Player Info"):
     def __init__(self, sheet):
         super().__init__()
         self.sheet = sheet
@@ -23,28 +24,43 @@ class PlayerInfoModal(discord.ui.Modal, title="Fill out your information"):
 
     async def on_submit(self, interaction: discord.Interaction):
         user = interaction.user
-        response = (
-            f"**Discord Username:** {user.mention}\n"
-            f"**Activision ID:** {self.activision.value}\n"
-            f"**Platform:** {self.platform.value}\n"
-            f"**Stream Link:** {self.stream.value if self.stream.value else 'N/A'}"
-        )
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        values = [
+            timestamp,
+            user.name,
+            str(user.id),
+            self.platform.value,
+            self.stream.value if self.stream.value else "N/A"
+        ]
 
         channel = discord.utils.get(interaction.guild.text_channels, name="playerinfo")
         if channel:
+            response = (
+                f"**Discord Username:** {user.mention}\n"
+                f"**Activision ID:** {self.activision.value}\n"
+                f"**Platform:** {self.platform.value}\n"
+                f"**Streaming Platform:** {self.stream.value if self.stream.value else 'N/A'}"
+            )
             await channel.send(response)
 
         try:
-            self.sheet.append_row([
-                str(user),
-                self.activision.value,
-                self.platform.value,
-                self.stream.value if self.stream.value else "N/A"
-            ])
-        except Exception as e:
-            print(f"⚠️ Failed to write to Google Sheet: {e}")
+            rows = self.sheet.get_all_values()
+            updated = False
 
-        await interaction.response.send_message("✅ Player info submitted!", ephemeral=True)
+            for idx, row in enumerate(rows[1:], start=2):  # Skip header
+                if len(row) >= 3 and row[2] == str(user.id):
+                    self.sheet.update(f"A{idx}:E{idx}", [values])
+                    updated = True
+                    break
+
+            if not updated:
+                self.sheet.append_row(values)
+
+        except Exception as e:
+            print(f"⚠️ Failed to log/update Google Sheet: {e}")
+
+        await interaction.response.send_message("✅ Your player info was submitted!", ephemeral=True)
 
 class PlayerInfoButton(discord.ui.View):
     def __init__(self, sheet):
@@ -52,9 +68,9 @@ class PlayerInfoButton(discord.ui.View):
         self.sheet = sheet
 
     @discord.ui.button(
-        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS PLAYER INFORMATION⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         style=discord.ButtonStyle.danger,
-        custom_id="player_info_button"  # Persistent view binding
+        custom_id="player_info_button"
     )
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerInfoModal(self.sheet))
@@ -91,8 +107,8 @@ class PlayerInformation(commands.Cog):
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
-# 🔒 Persistent View Registration
+# ✅ Register persistent button view
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
-    bot.add_view(PlayerInfoButton(cog.sheet))  # Register view after restart
+    bot.add_view(PlayerInfoButton(cog.sheet))
