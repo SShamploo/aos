@@ -52,6 +52,9 @@ class HCAvailabilityScheduler(commands.Cog):
                 await interaction.response.send_message(f"Emoji '{name}' not found in this server.", ephemeral=True)
                 return
 
+        # ✅ Prevent Discord timeout error
+        await interaction.response.defer(ephemeral=True)
+
         today = datetime.now().date()
         days_since_sunday = (today.weekday() + 1) % 7
         sunday = today - timedelta(days=days_since_sunday)
@@ -60,7 +63,7 @@ class HCAvailabilityScheduler(commands.Cog):
 
         for i in range(7):
             current_day = sunday + timedelta(days=i)
-            day_name = current_day.strftime("%A").upper()  # ✅ ALL CAPS
+            day_name = current_day.strftime("%A").upper()  # ✅ All caps
             date_str = current_day.strftime("%m/%d")
             formatted_message = f"# {day_name} {date_str}"
 
