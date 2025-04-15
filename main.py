@@ -11,17 +11,15 @@ from datetime import datetime
 # Load environment variables from .env or Render dashboard
 load_dotenv()
 
-# Set up bot intents for full logging support
+# Set up bot intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
-intents.reactions = True  # Needed for on_raw_reaction_add
+intents.reactions = True
 
-# Create bot instance with no prefix (slash commands only)
 bot = commands.Bot(command_prefix=None, intents=intents)
 
-# List of cog modules to load (match folders/filenames)
 initial_extensions = [
     "HCScheduler.hcavailabilityscheduler",
     "Results.results",
@@ -31,7 +29,6 @@ initial_extensions = [
     "vc_autochannel.vc_autochannel"
 ]
 
-# Load each cog
 async def load_cogs():
     for ext in initial_extensions:
         try:
@@ -41,7 +38,6 @@ async def load_cogs():
             print(f"❌ Failed to load {ext}: {e}")
             traceback.print_exc()
 
-# Sync and clear ghost commands on ready
 @bot.event
 async def on_ready():
     print(f"🤖 Bot is online as {bot.user.name}")
@@ -52,12 +48,11 @@ async def on_ready():
         print(f"❌ Failed to sync slash commands: {e}")
         traceback.print_exc()
 
-# Main function to start bot
 async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
 
-# 👇 REACTION TRACKING WITH EMOJI NAME + DUPLICATE CHECK 👇
+# ✅ Updated: Proper emoji name + duplicate prevention
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id == bot.user.id:
@@ -76,42 +71,40 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         print("⚠️ HCAvailabilityScheduler cog not loaded yet.")
         return
 
-    channel_id = payload.channel_id
-    message_id = payload.message_id
+    channel_id = str(payload.channel_id)
+    message_id = str(payload.message_id)
 
-    # ✅ Extract emoji name only
+    # ✅ Extract emoji name
     emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message_text = hc_cog.sent_messages.get(channel_id, {}).get(message_id)
 
     if not message_text:
-        return  # Not one of the tracked messages
+        return  # Not tracked
 
     try:
-        # ✅ Check for duplicates before logging
         existing_rows = hc_cog.sheet.get_all_values()
-        for row in existing_rows[1:]:  # Skip headers
+        for row in existing_rows[1:]:  # skip header
             if len(row) >= 6:
-                uid = row[2].strip()
-                em = row[3].strip()
-                msg = row[4].strip()
-                if uid == str(member.id) and em == emoji and msg == str(message_id):
+                if (
+                    row[2].strip() == str(member.id) and
+                    row[3].strip() == emoji and
+                    row[4].strip() == message_id
+                ):
                     print(f"⚠️ Duplicate reaction found — skipping log for {member.name}")
                     return
 
-        # ✅ Log to Google Sheets
         hc_cog.sheet.append_row([
             timestamp,
             member.name,
             str(member.id),
             emoji,
-            str(message_id),
+            message_id,
             message_text
         ])
         print(f"✅ Logged: {member.name} reacted with {emoji} to '{message_text}'")
     except Exception as e:
         print(f"⚠️ Failed to write to Google Sheet: {e}")
 
-# Run the bot
 asyncio.run(main())
 
