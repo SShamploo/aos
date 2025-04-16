@@ -15,21 +15,11 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
         super().__init__()
         self.sheet = sheet
 
-        self.league = discord.ui.TextInput(
-            label="League (MUST BE: HC or AL)", required=True
-        )
-        self.match_type_and_result = discord.ui.TextInput(
-            label="Match Type + W/L (e.g., OBJ W)", required=True
-        )
-        self.enemy_team = discord.ui.TextInput(
-            label="Enemy Team", required=True
-        )
-        self.map_and_score = discord.ui.TextInput(
-            label="Map + Final Score (e.g., Hotel 13-9)", required=True
-        )
-        self.screenshot_url = discord.ui.TextInput(
-            label="Screenshot URL (optional)", required=False
-        )
+        self.league = discord.ui.TextInput(label="League (MUST BE: HC or AL)", required=True)
+        self.match_type_and_result = discord.ui.TextInput(label="Match Type + W/L (e.g., OBJ W)", required=True)
+        self.enemy_team = discord.ui.TextInput(label="Enemy Team", required=True)
+        self.map_and_score = discord.ui.TextInput(label="Map + Final Score (e.g., Hotel 13-9)", required=True)
+        self.screenshot_url = discord.ui.TextInput(label="Screenshot URL (optional)", required=False)
 
         self.add_item(self.league)
         self.add_item(self.match_type_and_result)
@@ -46,15 +36,12 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             map_score = self.map_and_score.value.strip()
             screenshot = self.screenshot_url.value.strip()
 
-            # Parse Match Type + W/L
             mt_parts = match_type_result.split()
             match_type, win_loss = mt_parts if len(mt_parts) == 2 else ("UNKNOWN", "UNKNOWN")
 
-            # Parse Map + Final Score
             ms_parts = map_score.rsplit(" ", 1)
             map_played, final_score = ms_parts if len(ms_parts) == 2 else ("UNKNOWN", "UNKNOWN")
 
-            # Build embed
             embed = discord.Embed(title="📊 Match Report", color=discord.Color.red())
             embed.add_field(name="Match Type", value=match_type, inline=True)
             embed.add_field(name="League", value=league, inline=True)
@@ -64,10 +51,9 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             embed.add_field(name="Final Score", value=final_score, inline=True)
             embed.set_footer(text=f"Submitted by {user_name}", icon_url=interaction.user.display_avatar.url)
 
-            if screenshot and screenshot.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+            if screenshot.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
                 embed.set_image(url=screenshot)
 
-            # Send to channel
             results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
             if results_channel:
                 await results_channel.send(embed=embed)
@@ -75,7 +61,6 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
                 await interaction.response.send_message("❌ Could not find #results channel.", ephemeral=True)
                 return
 
-            # Log to Google Sheets
             self.sheet.append_row([
                 user_name,
                 match_type,
@@ -90,10 +75,10 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             await interaction.response.send_message("✅ Match submitted!", ephemeral=True)
 
         except Exception as e:
-            print(f"❌ Error during modal submission: {e}")
+            print(f"❌ Modal error: {e}")
             traceback.print_exc()
             try:
-                await interaction.response.send_message("❌ Submission failed due to an error.", ephemeral=True)
+                await interaction.response.send_message("❌ Error submitting match.", ephemeral=True)
             except:
                 pass
 
@@ -105,16 +90,16 @@ class MatchResultsButton(discord.ui.View):
     @discord.ui.button(
         label="⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀AOS MATCH RESULTS⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
         style=discord.ButtonStyle.danger,
-        custom_id="match_results_button"
+        custom_id="match_results_button_v3"  # 🔄 unique to avoid interaction cache
     )
     async def launch_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print("✅ Button clicked, sending modal...")  # DEBUG
         await interaction.response.send_modal(MatchResultsModal(self.sheet))
 
 class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Google Sheets Setup
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -143,4 +128,4 @@ class MatchResults(commands.Cog):
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
-    bot.add_view(MatchResultsButton(cog.sheet))  # Required to activate button listener
+    bot.add_view(MatchResultsButton(cog.sheet))  # 🔒 Required persistent view registration
