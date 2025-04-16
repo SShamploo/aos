@@ -12,9 +12,11 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
-    def __init__(self, sheet):
+    def __init__(self, sheet, image_urls, image_message):
         super().__init__()
         self.sheet = sheet
+        self.image_urls = image_urls
+        self.image_message = image_message
 
         self.match_type = discord.ui.TextInput(label="MATCH TYPE (OBJ/CB/CHALL/SCRIM/COMP)", required=True)
         self.league = discord.ui.TextInput(label="LEAGUE (HC/AL)", required=True)
@@ -42,23 +44,18 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
             return
 
-        await interaction.response.send_message("📸 Please upload your screenshot below:", ephemeral=True)
+        await results_channel.send(result_line)
 
-        def check(msg):
-            return msg.author.id == user.id and msg.attachments and msg.channel == interaction.channel
+        for url in self.image_urls:
+            await results_channel.send(url)
 
         try:
-            msg = await interaction.client.wait_for("message", check=check, timeout=60)
-            attachment = msg.attachments[0]
-            image_file = await attachment.to_file()
-            image_url = attachment.url
+            await self.image_message.delete()
+        except:
+            pass
 
-            await results_channel.send(result_line)
-            await results_channel.send(file=image_file)
-
-            await msg.delete()
-
-            # Log to Google Sheets
+        # Log to Google Sheets
+        try:
             self.sheet.append_row([
                 timestamp,
                 user.name,
@@ -67,12 +64,12 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
                 self.enemy_team.value,
                 self.map.value,
                 self.wl.value,
-                image_url
+                ", ".join(self.image_urls)
             ])
-
         except Exception as e:
-            print(f"⚠️ Failed to handle screenshot or log: {e}")
-            await interaction.followup.send("❌ Something went wrong. Try again.", ephemeral=True)
+            print(f"⚠️ Google Sheets logging error: {e}")
+
+        await interaction.response.send_message("✅ Match results submitted.", ephemeral=True)
 
 class MatchResultsButton(discord.ui.View):
     def __init__(self, sheet):
@@ -81,12 +78,30 @@ class MatchResultsButton(discord.ui.View):
 
     @discord.ui.button(label="AOS MATCH RESULTS", style=discord.ButtonStyle.danger, custom_id="match_results_button")
     async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(MatchResultsModal(self.sheet))
+        await interaction.response.send_message("📸 Please upload 1–10 screenshots **in a single message** now:", ephemeral=True)
+
+        def check(msg):
+            return (
+                msg.author.id == interaction.user.id and
+                msg.channel == interaction.channel and
+                len(msg.attachments) > 0 and
+                len(msg.attachments) <= 10
+            )
+
+        try:
+            msg = await interaction.client.wait_for("message", check=check, timeout=60)
+
+            image_urls = [attachment.url for attachment in msg.attachments]
+            await interaction.followup.send("📝 Now filling out match results form...", ephemeral=True)
+            await interaction.response.send_modal(MatchResultsModal(self.sheet, image_urls, msg))
+
+        except Exception as e:
+            print(f"⚠️ Image collection error: {e}")
+            await interaction.followup.send("❌ No valid image message received. Please try again.", ephemeral=True)
 
 class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -100,7 +115,6 @@ class MatchResults(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         channel = interaction.channel
-
         try:
             async for msg in channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
