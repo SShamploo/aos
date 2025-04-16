@@ -32,9 +32,12 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         user = interaction.user
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        result_line = f"# {self.match_type.value.upper()} | {self.league.value.upper()} | {self.enemy_team.value} | {self.map.value} | {self.wl.value.upper()}"
-        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+        result_line = (
+            f"# MATCH RESULTS: {self.match_type.value.upper()} | {self.league.value.upper()} | "
+            f"{self.enemy_team.value.upper()} | {self.map.value.upper()} | {self.wl.value.upper()}"
+        )
 
+        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
         if not results_channel:
             await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
             return
@@ -50,11 +53,9 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             image_file = await attachment.to_file()
             image_url = attachment.url
 
-            # Send result message and image
             await results_channel.send(result_line)
             await results_channel.send(file=image_file)
 
-            # Delete user’s upload
             await msg.delete()
 
             # Log to Google Sheets
