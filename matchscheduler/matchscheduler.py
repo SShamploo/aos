@@ -9,111 +9,95 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
-    def __init__(self, league, match_type, sheet):
+class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
+    def __init__(self, sheet, image_files):
         super().__init__()
-        self.league = league
-        self.match_type = match_type
         self.sheet = sheet
+        self.image_files = image_files
 
-        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD/YYYY", required=True)
-        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM CST", required=True)
-        self.enemy_team = discord.ui.TextInput(label="Enemy Team", placeholder="Enter team name", required=True)
+        self.match_type = discord.ui.TextInput(label="MATCH TYPE (OBJ/CB/CHALL/SCRIM/COMP)", required=True)
+        self.league = discord.ui.TextInput(label="LEAGUE (HC/AL)", required=True)
+        self.enemy_team = discord.ui.TextInput(label="ENEMY TEAM", required=True)
+        self.map = discord.ui.TextInput(label="MAP", required=True)
+        self.wl = discord.ui.TextInput(label="W/L", placeholder="W or L", required=True)
 
-        self.add_item(self.date)
-        self.add_item(self.time)
+        self.add_item(self.match_type)
+        self.add_item(self.league)
         self.add_item(self.enemy_team)
+        self.add_item(self.map)
+        self.add_item(self.wl)
 
     async def on_submit(self, interaction: discord.Interaction):
-        channel = interaction.guild.get_channel(1360237474454175814)
-        if not channel:
-            await interaction.response.send_message("❌ Could not find the match schedule channel.", ephemeral=True)
+        user = interaction.user
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+        if not results_channel:
+            await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
             return
 
-        emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
-        emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
-
-        role_name = "Capo" if self.league == "HC" else "Soldier"
-        role = discord.utils.get(interaction.guild.roles, name=role_name)
-        role_mention = role.mention if role else f"@{role_name}"
-
-        message_text = (
-            f"# {emoji_str} {self.date.value} | {self.time.value} | "
-            f"{self.enemy_team.value} | {self.league} | {self.match_type} {role_mention}"
+        # Message format
+        message = (
+            f"# MATCH RESULTS: {self.match_type.value.upper()} | {self.league.value.upper()} | "
+            f"{self.enemy_team.value.upper()} | {self.map.value.upper()} | {self.wl.value.upper()}"
         )
 
-        await interaction.response.send_message("📸 Please upload 1–10 screenshot(s) in this channel now:", ephemeral=True)
+        await results_channel.send(message)
+
+        urls = []
+        for file in self.image_files:
+            discord_file = await file.to_file()
+            sent = await results_channel.send(file=discord_file)
+            urls.append(sent.attachments[0].url)
+
+        await interaction.response.send_message("✅ Match results submitted.", ephemeral=True)
+
+        # Log to sheet
+        try:
+            self.sheet.append_row([
+                timestamp,
+                user.name,
+                self.match_type.value,
+                self.league.value,
+                self.enemy_team.value,
+                self.map.value,
+                self.wl.value,
+                ", ".join(urls)
+            ])
+        except Exception as e:
+            print(f"⚠️ Failed to log to Google Sheets: {e}")
+
+class MatchResults(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+        load_dotenv()
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
+        self.client = gspread.authorize(ServiceAccountCredentials.from_json_keyfile_dict(creds, scope))
+        self.sheet = self.client.open("AOS").worksheet("matchresults")
+
+    @app_commands.command(name="matchresults", description="Submit match results with multiple screenshots.")
+    async def matchresults(self, interaction: discord.Interaction):
+        await interaction.response.send_message("📸 Please upload 1–10 screenshot(s) now:", ephemeral=True)
 
         def check(msg):
             return (
-                msg.author.id == interaction.user.id
-                and msg.channel == interaction.channel
-                and len(msg.attachments) > 0
-                and all(a.content_type and a.content_type.startswith("image/") for a in msg.attachments)
+                msg.author.id == interaction.user.id and
+                msg.channel == interaction.channel and
+                msg.attachments and
+                1 <= len(msg.attachments) <= 10
             )
 
         try:
-            msg = await interaction.client.wait_for("message", check=check, timeout=90)
-
-            # Post match details
-            await channel.send(message_text)
-
-            # Send all images under it
-            for attachment in msg.attachments[:10]:
-                file = await attachment.to_file()
-                await channel.send(file=file)
-
+            msg = await self.bot.wait_for("message", check=check, timeout=60)
+            image_files = msg.attachments
             await msg.delete()
-
-            # Log match to Google Sheet
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.sheet.append_row([
-                timestamp,
-                str(interaction.user),
-                self.date.value,
-                self.time.value,
-                self.enemy_team.value,
-                self.league,
-                self.match_type
-            ])
-
+            await interaction.followup.send("📝 Now filling out the match form...", ephemeral=True)
+            await interaction.response.send_modal(MatchResultsModal(self.sheet, image_files))
         except Exception as e:
-            print(f"⚠️ Error handling image upload: {e}")
-            await interaction.followup.send("❌ Something went wrong or timed out.", ephemeral=True)
+            print(f"⚠️ Image upload failed or timeout: {e}")
+            await interaction.followup.send("❌ Image upload failed or timed out.", ephemeral=True)
 
-class MatchScheduler(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        load_dotenv()
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
-        creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-        self.client = gspread.authorize(creds)
-        self.sheet = self.client.open("AOS").worksheet("matches")
-
-    @app_commands.command(name="schedulematch", description="Schedule a match and notify the team.")
-    @app_commands.choices(
-        league=[
-            app_commands.Choice(name="HC", value="HC"),
-            app_commands.Choice(name="AL", value="AL"),
-        ],
-        match_type=[
-            app_commands.Choice(name="OBJ", value="OBJ"),
-            app_commands.Choice(name="CB", value="CB"),
-            app_commands.Choice(name="CHALL", value="CHALL"),
-            app_commands.Choice(name="SCRIM", value="SCRIM"),
-            app_commands.Choice(name="COMP", value="COMP"),
-        ]
-    )
-    async def schedulematch(
-        self,
-        interaction: discord.Interaction,
-        league: app_commands.Choice[str],
-        match_type: app_commands.Choice[str]
-    ):
-        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, self.sheet))
-
-# Setup
 async def setup(bot):
-    await bot.add_cog(MatchScheduler(bot))
+    await bot.add_cog(MatchResults(bot))
