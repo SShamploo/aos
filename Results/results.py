@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
+MAX_IMAGES = 10
+
 class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
     def __init__(self, sheet, images):
         super().__init__()
@@ -33,52 +35,58 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
     async def on_submit(self, interaction: discord.Interaction):
         user = interaction.user
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
-        if not results_channel:
-            await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
-            return
 
         result_line = (
-            f"# MATCH RESULTS: {self.match_type.value.upper()} | {self.league.value.upper()} | "
+            f"**MATCH RESULTS:** {self.match_type.value.upper()} | {self.league.value.upper()} | "
             f"{self.enemy_team.value.upper()} | {self.map.value.upper()} | {self.wl.value.upper()}"
         )
 
-        await results_channel.send(result_line)
-        for img in self.images:
-            await results_channel.send(file=img)
+        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+        if not results_channel:
+            await interaction.followup.send("❌ #results channel not found.", ephemeral=True)
+            return
 
-        self.sheet.append_row([
-            timestamp,
-            user.name,
-            self.match_type.value,
-            self.league.value,
-            self.enemy_team.value,
-            self.map.value,
-            self.wl.value,
-            ", ".join([img.filename for img in self.images])
-        ])
+        result_msg = await results_channel.send(result_line)
 
-        await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
+        for attachment in self.images:
+            await results_channel.send(file=await attachment.to_file())
 
-class ImageUploadView(discord.ui.View):
+        try:
+            self.sheet.append_row([
+                timestamp,
+                user.name,
+                self.match_type.value,
+                self.league.value,
+                self.enemy_team.value,
+                self.map.value,
+                self.wl.value,
+                ", ".join(img.url for img in self.images)
+            ])
+        except Exception as e:
+            print(f"⚠️ Google Sheets logging error: {e}")
+
+        await interaction.followup.send("✅ Match results submitted!", ephemeral=True)
+
+
+class UploadButton(discord.ui.View):
     def __init__(self, bot, sheet):
-        super().__init__(timeout=300)
+        super().__init__(timeout=None)
         self.bot = bot
         self.sheet = sheet
         self.images = []
-        self.done = False
 
-    @discord.ui.button(label="Done Uploading Images", style=discord.ButtonStyle.primary, custom_id="done_uploading_images")
-    async def done_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True)
-        self.done = True
-        modal = MatchResultsModal(self.sheet, self.images)
-        await interaction.followup.send("📝 Now opening the match form...", ephemeral=True)
-        await interaction.followup.send_modal(modal)
+    @discord.ui.button(label="Done Uploading Images", style=discord.ButtonStyle.primary, custom_id="done_uploading")
+    async def done_uploading(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(MatchResultsModal(self.sheet, self.images))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return True
+
 
 class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -103,27 +111,22 @@ class MatchResults(commands.Cog):
         file = discord.File(fp=image_path, filename="matchresults.png")
         await channel.send(file=file)
 
-        view = ImageUploadView(self.bot, self.sheet)
-        await channel.send("📸 Upload Match Screenshots now, send 1–10 screenshots one-by-one.", view=view)
+        view = UploadButton(self.bot, self.sheet)
+        await channel.send("📸 Upload Match Screenshots now, send 1–10 screenshots one-by-one.", view=view, ephemeral=True)
 
-        def check(msg):
-            return msg.author.id == interaction.user.id and msg.attachments and msg.channel == interaction.channel
+        def check(m):
+            return m.author.id == interaction.user.id and m.channel == interaction.channel and m.attachments
 
-        while len(view.images) < 10 and not view.done:
+        while len(view.images) < MAX_IMAGES:
             try:
-                msg = await self.bot.wait_for("message", check=check, timeout=120)
-                view.images.append(await msg.attachments[0].to_file())
+                msg = await self.bot.wait_for("message", timeout=120.0, check=check)
+                view.images.extend(msg.attachments[:MAX_IMAGES - len(view.images)])
                 await msg.delete()
                 await channel.send(f"📸 Upload Image {len(view.images)+1} or click **Done Uploading Images**", ephemeral=True)
-            except Exception:
+            except:
                 break
 
-        if not view.done and view.images:
-            modal = MatchResultsModal(self.sheet, view.images)
-            await interaction.followup.send_modal(modal)
-
-# Register
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
-    bot.add_view(ImageUploadView(bot, cog.sheet))
+    bot.add_view(UploadButton(bot, cog.sheet))
