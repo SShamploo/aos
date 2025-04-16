@@ -12,6 +12,9 @@ import base64
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+# Import view from match results
+from Results.results import MatchResultsButton
+
 # Load environment variables
 load_dotenv()
 
@@ -49,6 +52,18 @@ async def on_ready():
         print(f"❌ Failed to sync slash commands: {e}")
         traceback.print_exc()
 
+    # ✅ Register persistent match results view
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
+        client = gspread.authorize(creds)
+        sheet = client.open("AOS").worksheet("matchresults")
+        bot.add_view(MatchResultsButton(sheet))
+        print("✅ Registered MatchResultsButton persistent view")
+    except Exception as e:
+        print(f"❌ Failed to register MatchResultsButton view: {e}")
+
 async def main():
     await load_cogs()
     await bot.start(os.getenv("TOKEN"))
@@ -79,7 +94,6 @@ async def handle_reaction_event(payload, event_type: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        # Google Sheets setup
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
@@ -96,7 +110,7 @@ async def handle_reaction_event(payload, event_type: str):
 
         league = matched_row[0]
         full_text = matched_row[3]
-        message_text = full_text.split()[0].upper()  # Only "SUNDAY", etc.
+        message_text = full_text.split()[0].upper()
 
         all_rows = availability_sheet.get_all_values()
 
@@ -126,5 +140,5 @@ async def handle_reaction_event(payload, event_type: str):
     except Exception as e:
         print(f"❌ Reaction tracking failed: {e}")
 
-# Start the bot
+# 🚀 Start bot
 asyncio.run(main())
