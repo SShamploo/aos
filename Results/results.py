@@ -27,37 +27,34 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         self.add_item(self.wl)
 
     async def on_submit(self, interaction: discord.Interaction):
-        user = interaction.user
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Default screenshot link placeholder
-        screenshot_url = "N/A"
-
-        await interaction.response.send_message("✅ Match info submitted! You have 60 seconds to reply with a screenshot.", ephemeral=True)
-
-        def check(m):
-            return (
-                m.author.id == user.id and
-                m.channel.id == interaction.channel.id and
-                m.attachments and
-                m.attachments[0].content_type.startswith("image/")
-            )
-
         try:
-            reply = await interaction.client.wait_for("message", check=check, timeout=60)
-            if reply:
-                results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
-                if results_channel:
-                    await results_channel.send(f"📸 Screenshot from {user.mention}:", file=await reply.attachments[0].to_file())
+            user = interaction.user
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            screenshot_url = "N/A"
 
-                # Get screenshot URL from Discord CDN
-                screenshot_url = reply.attachments[0].url
-        except:
-            pass  # User didn't respond or didn't include image
+            # Prompt for screenshot
+            await interaction.response.send_message("✅ Match info submitted! You have 60 seconds to reply with a screenshot.", ephemeral=True)
 
-        # Log to Google Sheet
-        try:
-            self.sheet.append_row([
+            def check(m):
+                return (
+                    m.author.id == user.id and
+                    m.channel.id == interaction.channel.id and
+                    m.attachments and
+                    m.attachments[0].content_type.startswith("image/")
+                )
+
+            try:
+                reply = await interaction.client.wait_for("message", check=check, timeout=60)
+                if reply:
+                    screenshot_url = reply.attachments[0].url
+                    results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+                    if results_channel:
+                        await results_channel.send(f"📸 Screenshot from {user.mention}:", file=await reply.attachments[0].to_file())
+            except:
+                pass  # No reply with image in 60 seconds
+
+            # Append to Google Sheets
+            values = [
                 timestamp,
                 user.name,
                 str(user.id),
@@ -67,9 +64,12 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
                 self.map.value,
                 self.wl.value.upper(),
                 screenshot_url
-            ])
+            ]
+
+            self.sheet.append_row(values)
         except Exception as e:
-            print(f"⚠️ Failed to write to matchresults sheet: {e}")
+            print(f"❌ Error in modal submission: {e}")
+            await interaction.followup.send("⚠️ Something went wrong while submitting match results.", ephemeral=True)
 
 class MatchResultsButton(discord.ui.View):
     def __init__(self, sheet):
@@ -88,6 +88,7 @@ class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+        # Google Sheets auth
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8")
@@ -108,14 +109,17 @@ class MatchResults(commands.Cog):
         except Exception as e:
             print(f"⚠️ Failed to clean previous prompt: {e}")
 
-        image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
-        file = discord.File(fp=image_path, filename="matchresults.png")
-        await channel.send(file=file)
+        try:
+            image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
+            file = discord.File(fp=image_path, filename="matchresults.png")
+            await channel.send(file=file)
+        except Exception as e:
+            print(f"❌ Failed to send match image: {e}")
 
         await channel.send(view=MatchResultsButton(self.sheet))
         await interaction.followup.send("✅ Match result prompt sent.", ephemeral=True)
 
-# Register view
+# 🔁 Register view
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
