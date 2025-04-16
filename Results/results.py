@@ -45,15 +45,19 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             map_score = self.map_and_score.value.strip()
             screenshot = self.screenshot_url.value.strip()
 
-            # Parse match_type and W/L
+            # ✅ Safely parse match type + W/L
             mt_parts = match_type_result.split()
-            match_type = mt_parts[0] if len(mt_parts) > 0 else "UNKNOWN"
-            win_loss = mt_parts[1] if len(mt_parts) > 1 else "UNKNOWN"
+            if len(mt_parts) == 2:
+                match_type, win_loss = mt_parts
+            else:
+                match_type, win_loss = "UNKNOWN", "UNKNOWN"
 
-            # Parse map and score
+            # ✅ Safely parse map + score
             ms_parts = map_score.rsplit(" ", 1)
-            map_played = ms_parts[0] if len(ms_parts) > 0 else "UNKNOWN"
-            final_score = ms_parts[1] if len(ms_parts) > 1 else "UNKNOWN"
+            if len(ms_parts) == 2:
+                map_played, final_score = ms_parts
+            else:
+                map_played, final_score = "UNKNOWN", "UNKNOWN"
 
             embed = discord.Embed(title="📊 Match Report", color=discord.Color.red())
             embed.add_field(name="Match Type", value=match_type, inline=True)
@@ -133,8 +137,7 @@ class MatchResults(commands.Cog):
         await interaction.channel.send(view=MatchResultsButton(self.sheet))
         await interaction.followup.send("✅ Match result prompt sent.", ephemeral=True)
 
-# ✅ Register the view when bot loads
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
-    bot.add_view(MatchResultsButton(cog.sheet))  # 🔒 Required for persistent button support
+    bot.add_view(MatchResultsButton(cog.sheet))  # 🔒 Required for persistent view
