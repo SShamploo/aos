@@ -49,7 +49,7 @@ class PlayerInfoModal(discord.ui.Modal, title="AOS PLAYER INFORMATION"):
             rows = self.sheet.get_all_values()
             updated = False
 
-            for idx, row in enumerate(rows[1:], start=2):  # Skip header
+            for idx, row in enumerate(rows[1:], start=2):
                 if len(row) >= 3 and row[2] == str(user.id):
                     self.sheet.update(f"A{idx}:F{idx}", [values])
                     updated = True
@@ -120,28 +120,15 @@ class PlayerInformation(commands.Cog):
                 await interaction.response.send_message("⚠️ No entries found.", ephemeral=True)
                 return
 
-            lines = []
-            for row in rows:
-                if len(row) >= 6:
-                    line = f"{row[1]}    {row[3]}    {row[4]}    {row[5]}"
-                    lines.append(line)
-
-            info = "\n".join(lines)
-            embed = discord.Embed(title="📋 AOS Player Information", description=f"```{info}```", color=discord.Color.purple())
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            lines = [f"**{r[1]} | {r[3]} | {r[4]} | {r[5]}**" for r in rows if len(r) >= 6]
+            message = "**AOS ACTIVE PLAYERS**\n" + "\n".join(lines)
+            await interaction.response.send_message(message, ephemeral=True)
             return
 
         for row in rows:
             if len(row) >= 4 and row[2] == str(user.id):
-                embed = discord.Embed(
-                    title=f"📋 Info for {user.display_name}",
-                    color=discord.Color.green()
-                )
-                embed.add_field(name="Activision ID", value=row[3], inline=False)
-                embed.add_field(name="Platform", value=row[4], inline=True)
-                embed.add_field(name="Streaming", value=row[5] if len(row) > 5 else "N/A", inline=True)
-                embed.set_footer(text="Fetched from playerinformation sheet")
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                message = f"**AOS ACTIVE PLAYERS**\n**{row[1]} | {row[3]} | {row[4]} | {row[5] if len(row) > 5 else 'N/A'}**"
+                await interaction.response.send_message(message, ephemeral=True)
                 return
 
         await interaction.response.send_message("⚠️ No player info found for that user.", ephemeral=True)
@@ -157,23 +144,20 @@ class PlayerInformation(commands.Cog):
         members = [m for m in guild.members if not m.bot]
         user_data = [[str(m), str(m.id)] for m in members]
 
-        # Clear and update Users sheet
         self.users_sheet.clear()
         self.users_sheet.append_row(["Username", "User ID"])
         self.users_sheet.append_rows(user_data)
 
-        # Build set of valid user IDs
         valid_ids = set(str(m.id) for m in members)
 
-        # Get current playerinformation rows
         all_rows = self.sheet.get_all_values()
         rows = all_rows[1:]
         deleted = 0
 
-        for i in reversed(range(len(rows))):  # Reverse to avoid shifting rows
+        for i in reversed(range(len(rows))):
             row = rows[i]
             if len(row) >= 3 and row[2] not in valid_ids:
-                self.sheet.delete_rows(i + 2)  # Offset for header
+                self.sheet.delete_rows(i + 2)
                 deleted += 1
 
         await interaction.followup.send(
@@ -181,7 +165,7 @@ class PlayerInformation(commands.Cog):
             ephemeral=True
         )
 
-# ✅ Register persistent view
+# Register
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
