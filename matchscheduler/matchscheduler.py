@@ -25,7 +25,6 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Directly fetch the channel by ID
         channel = interaction.guild.get_channel(1360237474454175814)
         if not channel:
             await interaction.response.send_message("❌ Could not find the match schedule channel.", ephemeral=True)
@@ -38,14 +37,35 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         role = discord.utils.get(interaction.guild.roles, name=role_name)
         role_mention = role.mention if role else f"@{role_name}"
 
-        message = (
+        message_text = (
             f"# {emoji_str} {self.date.value} | {self.time.value} | "
             f"{self.enemy_team.value} | {self.league} | {self.match_type} {role_mention}"
         )
-        await channel.send(message)
-        await interaction.response.send_message("✅ Match scheduled successfully!", ephemeral=True)
+
+        await interaction.response.send_message("📸 Please upload 1–10 screenshot(s) in this channel now:", ephemeral=True)
+
+        def check(msg):
+            return (
+                msg.author.id == interaction.user.id
+                and msg.channel == interaction.channel
+                and len(msg.attachments) > 0
+                and all(a.content_type and a.content_type.startswith("image/") for a in msg.attachments)
+            )
 
         try:
+            msg = await interaction.client.wait_for("message", check=check, timeout=90)
+
+            # Post match details
+            await channel.send(message_text)
+
+            # Send all images under it
+            for attachment in msg.attachments[:10]:
+                file = await attachment.to_file()
+                await channel.send(file=file)
+
+            await msg.delete()
+
+            # Log match to Google Sheet
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.sheet.append_row([
                 timestamp,
@@ -56,8 +76,10 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
                 self.league,
                 self.match_type
             ])
+
         except Exception as e:
-            print(f"⚠️ Failed to write to Google Sheet: {e}")
+            print(f"⚠️ Error handling image upload: {e}")
+            await interaction.followup.send("❌ Something went wrong or timed out.", ephemeral=True)
 
 class MatchScheduler(commands.Cog):
     def __init__(self, bot):
