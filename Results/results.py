@@ -1,4 +1,6 @@
 
+print("📦 Importing Results Cog...")
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -11,10 +13,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
-    def __init__(self, sheet, results_channel, image_urls):
+    def __init__(self, sheet, image_urls):
         super().__init__()
         self.sheet = sheet
-        self.results_channel = results_channel
         self.image_urls = image_urls
 
         self.match_type = discord.ui.TextInput(label="MATCH TYPE (OBJ/CB/CHALL/SCRIM/COMP)", required=True)
@@ -38,97 +39,64 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             f"{self.enemy_team.value.upper()} | {self.map.value.upper()} | {self.wl.value.upper()}"
         )
 
-        await self.results_channel.send(result_line)
-        for url in self.image_urls:
-            await self.results_channel.send(url)
+        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+        if not results_channel:
+            await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
+            return
 
-        self.sheet.append_row([
-            timestamp,
-            user.name,
-            self.match_type.value,
-            self.league.value,
-            self.enemy_team.value,
-            self.map.value,
-            self.wl.value,
-            ", ".join(self.image_urls)
-        ])
+        await results_channel.send(result_line)
+        for url in self.image_urls:
+            await results_channel.send(url)
+
+        # Log to Google Sheets
+        try:
+            self.sheet.append_row([
+                timestamp,
+                user.name,
+                self.match_type.value,
+                self.league.value,
+                self.enemy_team.value,
+                self.map.value,
+                self.wl.value,
+                self.image_urls[0] if self.image_urls else "N/A"
+            ])
+        except Exception as e:
+            print(f"⚠️ Failed to log to sheet: {e}")
 
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
 
-class ImageUploadView(discord.ui.View):
-    def __init__(self, bot, sheet):
-        super().__init__(timeout=300)
-        self.bot = bot
-        self.sheet = sheet
-        self.image_urls = []
-        self.image_messages = []
-        self.user = None
-        self.count = 1
-        self.done = False
-        self.uploading = False
 
-    @discord.ui.button(label="Done Uploading Images", style=discord.ButtonStyle.primary, custom_id="done_uploading")
-    async def done_uploading(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.user:
-            await interaction.response.send_message("❌ You didn't start this upload.", ephemeral=True)
-            return
-
-        self.done = True
-        await interaction.response.defer()
-        await self.open_modal(interaction)
-
-    async def collect_images(self, interaction):
-        self.user = interaction.user
-        channel = interaction.channel
-        await channel.send("📸 Upload Match Screenshots now, send 1–10 screenshots one-by-one.", ephemeral=True)
-        await channel.send(f"📸 Upload Image {self.count}:", view=self)
-
-        def check(m):
-            return m.author.id == self.user.id and m.attachments and m.channel == channel
-
-        while self.count <= 10 and not self.done:
-            try:
-                msg = await self.bot.wait_for("message", timeout=300, check=check)
-                resultimages_channel = discord.utils.get(interaction.guild.text_channels, name="resultimages")
-                if not resultimages_channel:
-                    await channel.send("❌ Could not find #resultimages channel.", ephemeral=True)
-                    return
-
-                new_msg = await resultimages_channel.send(file=await msg.attachments[0].to_file())
-                self.image_urls.append(new_msg.attachments[0].url)
-                self.image_messages.append(msg)
-
-                self.count += 1
-                if self.count <= 10 and not self.done:
-                    await channel.send(f"📸 Upload Image {self.count} or click **Done Uploading Images**", ephemeral=True)
-            except Exception:
-                break
-
-        if not self.done:
-            await self.open_modal(interaction)
-
-    async def open_modal(self, interaction):
-        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
-        if results_channel:
-            await interaction.response.send_modal(MatchResultsModal(self.sheet, results_channel, self.image_urls))
-        else:
-            await interaction.followup.send("❌ #results channel not found.", ephemeral=True)
-
-class MatchResultsButton(discord.ui.View):
+class UploadPrompt(discord.ui.View):
     def __init__(self, bot, sheet):
         super().__init__(timeout=None)
         self.bot = bot
         self.sheet = sheet
+        self.messages = {}
 
-    @discord.ui.button(label="AOS MATCH RESULTS", style=discord.ButtonStyle.danger, custom_id="match_results_button")
-    async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = ImageUploadView(self.bot, self.sheet)
-        await view.collect_images(interaction)
+    @discord.ui.button(label="Done Uploading Images", style=discord.ButtonStyle.primary, custom_id="done_uploading_images")
+    async def done_uploading_images(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user = interaction.user
+        if user.id not in self.messages:
+            await interaction.response.send_message("⚠️ No images detected. Please send 1-10 screenshots in one message first.", ephemeral=True)
+            return
+
+        msg = self.messages.pop(user.id)
+        image_urls = [a.url for a in msg.attachments[:10]]
+        try:
+            await msg.delete()
+        except:
+            pass
+
+        await interaction.response.send_modal(MatchResultsModal(self.sheet, image_urls))
+
+    async def store_user_message(self, message: discord.Message):
+        if 1 <= len(message.attachments) <= 10:
+            self.messages[message.author.id] = message
+
 
 class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -136,12 +104,13 @@ class MatchResults(commands.Cog):
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("AOS").worksheet("matchresults")
+        self.view = UploadPrompt(bot, self.sheet)
 
     @app_commands.command(name="matchresultsprompt", description="Send AOS match results prompt")
     async def matchresultsprompt(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        channel = interaction.channel
 
+        channel = interaction.channel
         try:
             async for msg in channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
@@ -152,10 +121,27 @@ class MatchResults(commands.Cog):
         image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
         file = discord.File(fp=image_path, filename="matchresults.png")
         await channel.send(file=file)
-        await channel.send(view=MatchResultsButton(self.bot, self.sheet))
-        await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
+
+        msg = await channel.send(
+            "📸 **Upload Match Screenshots now**, send **1–10 screenshots in a SINGLE message**:",
+            view=self.view
+        )
+
+        self.view.message = msg
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot:
+            return
+        if not message.attachments or not message.guild:
+            return
+
+        # If the prompt is active, store user message
+        if hasattr(self, 'view') and isinstance(self.view, UploadPrompt):
+            await self.view.store_user_message(message)
+
 
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
-    bot.add_view(MatchResultsButton(bot, cog.sheet))
+    bot.add_view(cog.view)
