@@ -18,7 +18,7 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             label="League (MUST BE: HC or AL)", required=True
         )
         self.match_type_and_result = discord.ui.TextInput(
-            label="Match Type + W/L (OBJ/CB/CHALL/SCRIM/COMP and W or L)", required=True
+            label="Match Type + W/L (e.g., OBJ W)", required=True
         )
         self.enemy_team = discord.ui.TextInput(
             label="Enemy Team", required=True
@@ -45,12 +45,12 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             map_score = self.map_and_score.value.strip()
             screenshot = self.screenshot_url.value.strip()
 
-            # Extract match type and W/L
+            # Parse match_type and W/L
             mt_parts = match_type_result.split()
             match_type = mt_parts[0] if len(mt_parts) > 0 else "UNKNOWN"
             win_loss = mt_parts[1] if len(mt_parts) > 1 else "UNKNOWN"
 
-            # Extract map and score
+            # Parse map and score
             ms_parts = map_score.rsplit(" ", 1)
             map_played = ms_parts[0] if len(ms_parts) > 0 else "UNKNOWN"
             final_score = ms_parts[1] if len(ms_parts) > 1 else "UNKNOWN"
@@ -88,8 +88,8 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             await interaction.response.send_message("✅ Match submitted!", ephemeral=True)
 
         except Exception as e:
-            print(f"⚠️ Modal submission failed: {e}")
-            await interaction.response.send_message("❌ An error occurred while processing your submission.", ephemeral=True)
+            print(f"⚠️ Modal error: {e}")
+            await interaction.response.send_message("❌ Error submitting match.", ephemeral=True)
 
 class MatchResultsButton(discord.ui.View):
     def __init__(self, sheet):
@@ -127,13 +127,14 @@ class MatchResults(commands.Cog):
         except Exception as e:
             print(f"⚠️ Cleanup failed: {e}")
 
-        image_path = os.path.join(os.path.dirname(__file__), "matchresults.jpg")
-        file = discord.File(fp=image_path, filename="matchresults.jpg")
+        image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
+        file = discord.File(fp=image_path, filename="matchresults.png")
         await interaction.channel.send(file=file)
         await interaction.channel.send(view=MatchResultsButton(self.sheet))
         await interaction.followup.send("✅ Match result prompt sent.", ephemeral=True)
 
+# ✅ Register the view when bot loads
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
-    bot.add_view(MatchResultsButton(cog.sheet))
+    bot.add_view(MatchResultsButton(cog.sheet))  # 🔒 Required for persistent button support
