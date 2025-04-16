@@ -41,6 +41,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             self.wl.value.upper()
         ]
 
+        # Send to #results channel
         channel = discord.utils.get(interaction.guild.text_channels, name="results")
         if channel:
             response = (
@@ -53,19 +54,9 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             )
             await channel.send(response)
 
+        # Save to Google Sheet
         try:
-            rows = self.sheet.get_all_values()
-            updated = False
-
-            for idx, row in enumerate(rows[1:], start=2):
-                if len(row) >= 3 and row[2] == str(user.id):
-                    self.sheet.update(f"A{idx}:H{idx}", [values])
-                    updated = True
-                    break
-
-            if not updated:
-                self.sheet.append_row(values)
-
+            self.sheet.append_row(values)
         except Exception as e:
             print(f"⚠️ Failed to write to matchresults sheet: {e}")
 
