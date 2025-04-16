@@ -14,62 +14,57 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
         super().__init__()
         self.sheet = sheet
 
-        self.enemy_team = discord.ui.TextInput(label="Enemy Team", required=True, placeholder="Team name")
-        self.map_played = discord.ui.TextInput(label="Map Played", required=True, placeholder="Map name")
-        self.final_score = discord.ui.TextInput(label="Final Score", required=True, placeholder="e.g. 13-9")
-        self.screenshot_url = discord.ui.TextInput(label="Screenshot URL (optional)", required=False, placeholder="Paste image link")
-
-        self.add_item(self.enemy_team)
-        self.add_item(self.map_played)
-        self.add_item(self.final_score)
-        self.add_item(self.screenshot_url)
-
-        self.match_type = discord.ui.Select(
-            placeholder="Match Type",
-            options=[
-                discord.SelectOption(label="OBJ", value="OBJ"),
-                discord.SelectOption(label="CB", value="CB"),
-                discord.SelectOption(label="CHALL", value="CHALL"),
-                discord.SelectOption(label="SCRIM", value="SCRIM"),
-                discord.SelectOption(label="COMP", value="COMP")
-            ]
+        self.match_type = discord.ui.TextInput(
+            label="Match Type (MUST BE: OBJ, CB, CHALL, SCRIM, COMP)",
+            required=True
         )
-        self.league = discord.ui.Select(
-            placeholder="League",
-            options=[
-                discord.SelectOption(label="HC", value="HC"),
-                discord.SelectOption(label="AL", value="AL")
-            ]
+        self.league = discord.ui.TextInput(
+            label="League (MUST BE: HC or AL)",
+            required=True
         )
-        self.win_loss = discord.ui.Select(
-            placeholder="Win or Loss",
-            options=[
-                discord.SelectOption(label="W", value="W"),
-                discord.SelectOption(label="L", value="L")
-            ]
+        self.win_loss = discord.ui.TextInput(
+            label="Win/Loss (MUST BE: W or L)",
+            required=True
+        )
+        self.enemy_team = discord.ui.TextInput(
+            label="Enemy Team",
+            required=True
+        )
+        self.map_played = discord.ui.TextInput(
+            label="Map Played",
+            required=True
+        )
+        self.final_score = discord.ui.TextInput(
+            label="Final Score (e.g., 13-9)",
+            required=True
+        )
+        self.screenshot_url = discord.ui.TextInput(
+            label="Screenshot URL (optional)",
+            required=False
         )
 
         self.add_item(self.match_type)
         self.add_item(self.league)
         self.add_item(self.win_loss)
+        self.add_item(self.enemy_team)
+        self.add_item(self.map_played)
+        self.add_item(self.final_score)
+        self.add_item(self.screenshot_url)
 
     async def on_submit(self, interaction: discord.Interaction):
         user_name = str(interaction.user)
-        match_type = self.match_type.values[0]
-        league = self.league.values[0]
-        win_loss = self.win_loss.values[0]
-        screenshot = self.screenshot_url.value.strip()
 
         embed = discord.Embed(title="📊 Match Report", color=discord.Color.red())
-        embed.add_field(name="Match Type", value=match_type, inline=False)
-        embed.add_field(name="League", value=league, inline=False)
-        embed.add_field(name="Enemy Team", value=self.enemy_team.value, inline=False)
-        embed.add_field(name="Map", value=self.map_played.value, inline=False)
-        embed.add_field(name="W/L", value=win_loss, inline=True)
-        embed.add_field(name="Final Score", value=self.final_score.value, inline=True)
+        embed.add_field(name="Match Type", value=self.match_type.value.strip(), inline=False)
+        embed.add_field(name="League", value=self.league.value.strip(), inline=False)
+        embed.add_field(name="Enemy Team", value=self.enemy_team.value.strip(), inline=False)
+        embed.add_field(name="Map", value=self.map_played.value.strip(), inline=False)
+        embed.add_field(name="W/L", value=self.win_loss.value.strip(), inline=True)
+        embed.add_field(name="Final Score", value=self.final_score.value.strip(), inline=True)
         embed.set_footer(text=f"Submitted by {user_name}", icon_url=interaction.user.display_avatar.url)
 
-        if screenshot and any(screenshot.lower().endswith(ext) for ext in [".jpg", ".png", ".gif"]):
+        screenshot = self.screenshot_url.value.strip()
+        if screenshot.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
             embed.set_image(url=screenshot)
 
         results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
@@ -82,12 +77,12 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
         try:
             self.sheet.append_row([
                 user_name,
-                match_type,
-                league,
-                self.enemy_team.value,
-                self.map_played.value,
-                win_loss,
-                self.final_score.value,
+                self.match_type.value.strip(),
+                self.league.value.strip(),
+                self.enemy_team.value.strip(),
+                self.map_played.value.strip(),
+                self.win_loss.value.strip(),
+                self.final_score.value.strip(),
                 screenshot if screenshot else "N/A"
             ])
         except Exception as e:
