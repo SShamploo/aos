@@ -15,24 +15,19 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
         self.sheet = sheet
 
         self.league = discord.ui.TextInput(
-            label="League (MUST BE: HC or AL)",
-            required=True
+            label="League (MUST BE: HC or AL)", required=True
         )
         self.match_type_and_result = discord.ui.TextInput(
-            label="Match Type + W/L (MUST BE: OBJ/CB/CHALL/SCRIM/COMP and W or L, e.g. OBJ W)",
-            required=True
+            label="Match Type + W/L (OBJ/CB/CHALL/SCRIM/COMP and W or L)", required=True
         )
         self.enemy_team = discord.ui.TextInput(
-            label="Enemy Team",
-            required=True
+            label="Enemy Team", required=True
         )
         self.map_and_score = discord.ui.TextInput(
-            label="Map + Final Score (e.g., Hotel 13-9)",
-            required=True
+            label="Map + Final Score (e.g., Hotel 13-9)", required=True
         )
         self.screenshot_url = discord.ui.TextInput(
-            label="Screenshot URL (optional)",
-            required=False
+            label="Screenshot URL (optional)", required=False
         )
 
         self.add_item(self.league)
@@ -42,21 +37,23 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
         self.add_item(self.screenshot_url)
 
     async def on_submit(self, interaction: discord.Interaction):
-        user_name = str(interaction.user)
-        league = self.league.value.strip()
-        match_type_result = self.match_type_and_result.value.strip()
-        enemy_team = self.enemy_team.value.strip()
-        map_score = self.map_and_score.value.strip()
-        screenshot = self.screenshot_url.value.strip()
-
         try:
-            # Parse match_type and win_loss from combined input
-            parts = match_type_result.split()
-            match_type = parts[0] if len(parts) > 0 else "UNKNOWN"
-            win_loss = parts[1] if len(parts) > 1 else "UNKNOWN"
+            user_name = str(interaction.user)
+            league = self.league.value.strip().upper()
+            match_type_result = self.match_type_and_result.value.strip()
+            enemy_team = self.enemy_team.value.strip()
+            map_score = self.map_and_score.value.strip()
+            screenshot = self.screenshot_url.value.strip()
 
-            map_played = " ".join(map_score.split()[:-1])
-            final_score = map_score.split()[-1]
+            # Extract match type and W/L
+            mt_parts = match_type_result.split()
+            match_type = mt_parts[0] if len(mt_parts) > 0 else "UNKNOWN"
+            win_loss = mt_parts[1] if len(mt_parts) > 1 else "UNKNOWN"
+
+            # Extract map and score
+            ms_parts = map_score.rsplit(" ", 1)
+            map_played = ms_parts[0] if len(ms_parts) > 0 else "UNKNOWN"
+            final_score = ms_parts[1] if len(ms_parts) > 1 else "UNKNOWN"
 
             embed = discord.Embed(title="📊 Match Report", color=discord.Color.red())
             embed.add_field(name="Match Type", value=match_type, inline=True)
@@ -67,17 +64,16 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             embed.add_field(name="Final Score", value=final_score, inline=True)
             embed.set_footer(text=f"Submitted by {user_name}", icon_url=interaction.user.display_avatar.url)
 
-            if screenshot.lower().endswith((".jpg", ".png", ".gif", ".jpeg")):
+            if screenshot and screenshot.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
                 embed.set_image(url=screenshot)
 
             results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
             if results_channel:
                 await results_channel.send(embed=embed)
             else:
-                await interaction.response.send_message("❌ Could not find #results channel.", ephemeral=True)
+                await interaction.response.send_message("❌ Could not find a #results channel.", ephemeral=True)
                 return
 
-            # Log to Google Sheets
             self.sheet.append_row([
                 user_name,
                 match_type,
@@ -92,8 +88,8 @@ class MatchResultsModal(discord.ui.Modal, title="📊 Submit Match Result"):
             await interaction.response.send_message("✅ Match submitted!", ephemeral=True)
 
         except Exception as e:
-            print(f"⚠️ Submission failed: {e}")
-            await interaction.response.send_message("❌ There was an error processing your match report.", ephemeral=True)
+            print(f"⚠️ Modal submission failed: {e}")
+            await interaction.response.send_message("❌ An error occurred while processing your submission.", ephemeral=True)
 
 class MatchResultsButton(discord.ui.View):
     def __init__(self, sheet):
@@ -124,19 +120,17 @@ class MatchResults(commands.Cog):
     async def matchresultprompt(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
-        channel = interaction.channel
-
         try:
-            async for msg in channel.history(limit=10):
+            async for msg in interaction.channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
                     await msg.delete()
         except Exception as e:
-            print(f"⚠️ Could not clean old prompts: {e}")
+            print(f"⚠️ Cleanup failed: {e}")
 
         image_path = os.path.join(os.path.dirname(__file__), "matchresults.jpg")
         file = discord.File(fp=image_path, filename="matchresults.jpg")
-        await channel.send(file=file)
-        await channel.send(view=MatchResultsButton(self.sheet))
+        await interaction.channel.send(file=file)
+        await interaction.channel.send(view=MatchResultsButton(self.sheet))
         await interaction.followup.send("✅ Match result prompt sent.", ephemeral=True)
 
 async def setup(bot):
