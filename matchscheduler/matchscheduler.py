@@ -25,22 +25,19 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Get the target channel
-        channel = discord.utils.get(interaction.guild.text_channels, name="datesandtimes")
+        # Directly fetch the channel by ID
+        channel = interaction.guild.get_channel(1360237474454175814)
         if not channel:
-            await interaction.response.send_message("❌ #datesandtimes channel not found.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find the match schedule channel.", ephemeral=True)
             return
 
-        # Get the custom emoji
         emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
         emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
 
-        # Get correct role mention based on case-sensitive names
         role_name = "Capo" if self.league == "HC" else "Soldier"
         role = discord.utils.get(interaction.guild.roles, name=role_name)
         role_mention = role.mention if role else f"@{role_name}"
 
-        # Build final message
         message = (
             f"# {emoji_str} {self.date.value} | {self.time.value} | "
             f"{self.enemy_team.value} | {self.league} | {self.match_type} {role_mention}"
@@ -48,7 +45,6 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         await channel.send(message)
         await interaction.response.send_message("✅ Match scheduled successfully!", ephemeral=True)
 
-        # Log to Google Sheet
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.sheet.append_row([
@@ -66,8 +62,6 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 class MatchScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-        # Google Sheets setup
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
