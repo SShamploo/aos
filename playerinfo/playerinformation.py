@@ -49,7 +49,7 @@ class PlayerInfoModal(discord.ui.Modal, title="AOS PLAYER INFORMATION"):
             rows = self.sheet.get_all_values()
             updated = False
 
-            for idx, row in enumerate(rows[1:], start=2):
+            for idx, row in enumerate(rows[1:], start=2):  # Skip header
                 if len(row) >= 3 and row[2] == str(user.id):
                     self.sheet.update(f"A{idx}:F{idx}", [values])
                     updated = True
@@ -104,9 +104,7 @@ class PlayerInformation(commands.Cog):
         image_path = os.path.join(os.path.dirname(__file__), "Playerinfo Report.jpg")
         file = discord.File(fp=image_path, filename="Playerinfo Report.jpg")
         await channel.send(file=file)
-
         await channel.send(view=PlayerInfoButton(self.sheet))
-
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
     @app_commands.command(name="userinformation", description="View player info or show all.")
@@ -115,23 +113,30 @@ class PlayerInformation(commands.Cog):
         all_rows = self.sheet.get_all_values()
         rows = all_rows[1:]
 
-        if user is None or user == interaction.guild.default_role:  # @everyone
+        if user is None or user == interaction.guild.default_role:
             if not rows:
                 await interaction.response.send_message("⚠️ No entries found.", ephemeral=True)
                 return
 
-            lines = [f"**{r[1]} | {r[3]} | {r[4]} | {r[5]}**" for r in rows if len(r) >= 6]
-            message = "**AOS ACTIVE PLAYERS**\n" + "\n".join(lines)
-            await interaction.response.send_message(message, ephemeral=True)
+            lines = []
+            for row in rows:
+                if len(row) >= 6:
+                    uid = row[2]
+                    line = f"**<@{uid}> | {row[3].upper()} | {row[4].upper()} | {row[5].upper()}**"
+                    lines.append(line)
+
+            header = "# AOS ACTIVE PLAYERS"
+            result = f"{header}\n" + "\n".join(lines)
+            await interaction.response.send_message(result, ephemeral=False)
             return
 
         for row in rows:
             if len(row) >= 4 and row[2] == str(user.id):
-                message = f"**AOS ACTIVE PLAYERS**\n**{row[1]} | {row[3]} | {row[4]} | {row[5] if len(row) > 5 else 'N/A'}**"
-                await interaction.response.send_message(message, ephemeral=True)
+                msg = f"**<@{user.id}> | {row[3].upper()} | {row[4].upper()} | {row[5].upper()}**"
+                await interaction.response.send_message(msg, ephemeral=False)
                 return
 
-        await interaction.response.send_message("⚠️ No player info found for that user.", ephemeral=True)
+        await interaction.response.send_message("⚠️ No player info found for that user.", ephemeral=False)
 
     @app_commands.command(name="syncusers", description="Sync current Discord users and remove outdated entries.")
     async def syncusers(self, interaction: discord.Interaction):
@@ -149,7 +154,6 @@ class PlayerInformation(commands.Cog):
         self.users_sheet.append_rows(user_data)
 
         valid_ids = set(str(m.id) for m in members)
-
         all_rows = self.sheet.get_all_values()
         rows = all_rows[1:]
         deleted = 0
@@ -165,7 +169,7 @@ class PlayerInformation(commands.Cog):
             ephemeral=True
         )
 
-# Register
+# Register persistent view
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
