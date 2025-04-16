@@ -32,15 +32,9 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         user = interaction.user
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        embed = discord.Embed(title="📊 Match Report", color=discord.Color.red())
-        embed.add_field(name="Match Type", value=self.match_type.value, inline=True)
-        embed.add_field(name="League", value=self.league.value, inline=True)
-        embed.add_field(name="Enemy Team", value=self.enemy_team.value, inline=False)
-        embed.add_field(name="Map", value=self.map.value, inline=True)
-        embed.add_field(name="W/L", value=self.wl.value, inline=True)
-        embed.set_footer(text=f"Submitted by {user.name}", icon_url=user.display_avatar.url)
-
+        result_line = f"# {self.match_type.value.upper()} | {self.league.value.upper()} | {self.enemy_team.value} | {self.map.value} | {self.wl.value.upper()}"
         results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+
         if not results_channel:
             await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
             return
@@ -52,12 +46,15 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
 
         try:
             msg = await interaction.client.wait_for("message", check=check, timeout=60)
-            image_url = msg.attachments[0].url
+            attachment = msg.attachments[0]
+            image_file = await attachment.to_file()
+            image_url = attachment.url
 
-            await results_channel.send(embed=embed)
-            await results_channel.send(f"📸 Screenshot from {user.mention}:", file=await msg.attachments[0].to_file())
+            # Send result message and image
+            await results_channel.send(result_line)
+            await results_channel.send(file=image_file)
 
-            # Delete user message after logging
+            # Delete user’s upload
             await msg.delete()
 
             # Log to Google Sheets
@@ -73,7 +70,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             ])
 
         except Exception as e:
-            print(f"⚠️ Failed to handle screenshot or sheet logging: {e}")
+            print(f"⚠️ Failed to handle screenshot or log: {e}")
             await interaction.followup.send("❌ Something went wrong. Try again.", ephemeral=True)
 
 class MatchResultsButton(discord.ui.View):
@@ -89,7 +86,6 @@ class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Load creds
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
@@ -114,8 +110,8 @@ class MatchResults(commands.Cog):
         image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
         file = discord.File(fp=image_path, filename="matchresults.png")
         await channel.send(file=file)
-
         await channel.send(view=MatchResultsButton(self.sheet))
+
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
 # Register View + Cog
