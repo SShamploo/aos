@@ -32,14 +32,14 @@ class LineupModal1(discord.ui.Modal):
             "shooters": names,
             "sheet": self.sheet,
             "match_id": self.match_id,
-            "player_count": self.player_count
+            "player_count": self.player_count,
+            "interaction": interaction
         }
 
         if self.player_count > 5:
             await interaction.response.send_modal(LineupModal2())
         else:
-            await finalize_lineup(interaction)
-
+            await finalize_lineup(interaction, followup=True)
 
 class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
     def __init__(self):
@@ -58,10 +58,9 @@ class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
             f"{ctx['emoji_map']['Weed_Gold']} {self.sub1.value}",
             f"{ctx['emoji_map']['Weed_Gold']} {self.sub2.value}"
         ]
-        await finalize_lineup(interaction)
+        await finalize_lineup(interaction, followup=True)
 
-
-async def finalize_lineup(interaction: discord.Interaction):
+async def finalize_lineup(interaction: discord.Interaction, followup=False):
     ctx = interaction.client.temp_lineup
     match_line = (
         f"# {ctx['emoji_map']['AOSgold']} {ctx['match_row'][2]} | {ctx['match_row'][3]} | "
@@ -81,14 +80,26 @@ async def finalize_lineup(interaction: discord.Interaction):
         f"{d9_line}\n**Subs:**\n"
         f"{subs}\n{d9_line}"
     )
-    await interaction.response.send_message(message)
+
+    if followup:
+        await ctx["interaction"].followup.send(message)
+    else:
+        await ctx["interaction"].response.send_message(message)
 
     timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    for i, line in enumerate(ctx["shooters"], 1):
-        ctx["sheet"].append_row([timestamp, ctx["match_id"], f"Player {i}", line.split(' ', 1)[1]])
-    for j, line in enumerate(ctx.get("subs", []), 1):
-        ctx["sheet"].append_row([timestamp, ctx["match_id"], f"Sub {j}", line.split(' ', 1)[1]])
+    sheet = ctx["sheet"]
+    match_id = str(ctx["match_id"])
+    all_rows = sheet.get_all_values()
 
+    # Remove existing entries for this match ID
+    to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == match_id]
+    for idx in reversed(to_delete):
+        sheet.delete_rows(idx)
+
+    for i, line in enumerate(ctx["shooters"], 1):
+        sheet.append_row([timestamp, match_id, f"Player {i}", line.split(' ', 1)[1]])
+    for j, line in enumerate(ctx.get("subs", []), 1):
+        sheet.append_row([timestamp, match_id, f"Sub {j}", line.split(' ', 1)[1]])
 
 class SetLineup(commands.Cog):
     def __init__(self, bot):
