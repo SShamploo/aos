@@ -9,17 +9,11 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Shared storage for context between modals
 TEMP_LINEUPS = {}
 
 class LineupModal1(discord.ui.Modal):
-    def __init__(self, match_row, emoji_map, player_count, sheet, match_id, key):
+    def __init__(self, key, player_count):
         super().__init__(title="Enter Shooters (1/2)", timeout=None)
-        self.match_row = match_row
-        self.emoji_map = emoji_map
-        self.sheet = sheet
-        self.match_id = match_id
-        self.player_count = player_count
         self.key = key
         self.player_inputs = []
 
@@ -29,20 +23,29 @@ class LineupModal1(discord.ui.Modal):
             self.player_inputs.append(field)
 
     async def on_submit(self, interaction: discord.Interaction):
-        names = [f"{self.emoji_map['ShadowJam']} {field.value}" for field in self.player_inputs]
-        TEMP_LINEUPS[self.key] = {
-            "match_row": self.match_row,
-            "emoji_map": self.emoji_map,
-            "shooters": names,
-            "sheet": self.sheet,
-            "match_id": self.match_id,
-            "player_count": self.player_count
-        }
+        ctx = TEMP_LINEUPS.get(self.key)
+        if not ctx:
+            await interaction.response.send_message("❌ Lineup context not found.", ephemeral=True)
+            return
 
-        if self.player_count > 5:
-            await interaction.response.send_modal(LineupModal2(self.key))
+        ctx["shooters"] = [f"{ctx['emoji_map']['ShadowJam']} {field.value}" for field in self.player_inputs]
+
+        if ctx["player_count"] > 5:
+            view = ContinueToSubView(self.key)
+            await interaction.response.send_message("✅ Shooters saved. Click below to enter subs.", view=view, ephemeral=True)
         else:
             await finalize_lineup(interaction, self.key)
+
+
+class ContinueToSubView(discord.ui.View):
+    def __init__(self, key):
+        super().__init__(timeout=300)
+        self.key = key
+
+    @discord.ui.button(label="Continue to Sub Input", style=discord.ButtonStyle.primary)
+    async def continue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(LineupModal2(self.key))
+
 
 class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
     def __init__(self, key):
@@ -56,9 +59,9 @@ class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
         self.add_item(self.sub2)
 
     async def on_submit(self, interaction: discord.Interaction):
-        ctx = TEMP_LINEUPS.get(self.key)
+        ctx = TEMP_LINEUPS.pop(self.key, None)
         if not ctx:
-            await interaction.response.send_message("❌ Context expired.", ephemeral=True)
+            await interaction.response.send_message("❌ Lineup context missing.", ephemeral=True)
             return
 
         ctx["shooters"].append(f"{ctx['emoji_map']['ShadowJam']} {self.player6.value}")
@@ -68,10 +71,11 @@ class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
         ]
         await finalize_lineup(interaction, self.key)
 
+
 async def finalize_lineup(interaction: discord.Interaction, key: str):
     ctx = TEMP_LINEUPS.pop(key, None)
     if not ctx:
-        await interaction.response.send_message("❌ Missing lineup data.", ephemeral=True)
+        await interaction.response.send_message("❌ Lineup context expired.", ephemeral=True)
         return
 
     match_line = (
@@ -92,7 +96,6 @@ async def finalize_lineup(interaction: discord.Interaction, key: str):
         f"{d9_line}\n**Subs:**\n"
         f"{subs}\n{d9_line}"
     )
-
     await interaction.response.send_message(message)
 
     timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -100,7 +103,6 @@ async def finalize_lineup(interaction: discord.Interaction, key: str):
     match_id = str(ctx["match_id"])
     all_rows = sheet.get_all_values()
 
-    # Remove existing entries for this match ID
     to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == match_id]
     for idx in reversed(to_delete):
         sheet.delete_rows(idx)
@@ -109,6 +111,7 @@ async def finalize_lineup(interaction: discord.Interaction, key: str):
         sheet.append_row([timestamp, match_id, f"Player {i}", line.split(' ', 1)[1]])
     for j, line in enumerate(ctx.get("subs", []), 1):
         sheet.append_row([timestamp, match_id, f"Sub {j}", line.split(' ', 1)[1]])
+
 
 class SetLineup(commands.Cog):
     def __init__(self, bot):
@@ -156,7 +159,15 @@ class SetLineup(commands.Cog):
                 emoji_map[name] = str(emoji) if emoji else f":{name}:"
 
             key = f"{interaction.user.id}_{match_id}"
-            await interaction.response.send_modal(LineupModal1(match_row, emoji_map, player_count, self.lineup_sheet, match_id, key))
+            TEMP_LINEUPS[key] = {
+                "match_row": match_row,
+                "emoji_map": emoji_map,
+                "sheet": self.lineup_sheet,
+                "match_id": match_id,
+                "player_count": player_count
+            }
+
+            await interaction.response.send_modal(LineupModal1(key, player_count))
 
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {e}")
