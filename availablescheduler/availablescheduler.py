@@ -31,6 +31,8 @@ class AvailabilityScheduler(commands.Cog):
         self._batch_writer.cancel()
 
     @tasks.loop(seconds=5)
+    @tasks.loop(seconds=5)
+    @tasks.loop(seconds=5)
     async def _batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
@@ -44,7 +46,6 @@ class AvailabilityScheduler(commands.Cog):
                     seen.add(key)
                     to_log.append(entry)
             try:
-                self.sheet.append_rows([
                     [r['timestamp'], r['user_name'], r['user_id'], r['emoji'], r['message_id'], r['message_text'], r['league']]
                     for r in to_log
                 ])
