@@ -30,7 +30,7 @@ class SetLineup(commands.Cog):
         ]
     )
     async def setlineup(self, interaction: discord.Interaction, match_id: int, lineup_type: app_commands.Choice[str]):
-        await interaction.response.defer(thinking=True)  # Not ephemeral, makes it public
+        await interaction.response.defer(thinking=True)  # Public message
 
         try:
             data = self.sheet.get_all_values()
@@ -41,8 +41,19 @@ class SetLineup(commands.Cog):
                 await interaction.followup.send("❌ Match ID not found.")
                 return
 
+            # Fetch custom emojis from guild
+            aosgold = discord.utils.get(interaction.guild.emojis, name="AOSgold")
+            d9 = discord.utils.get(interaction.guild.emojis, name="D9")
+            shadow = discord.utils.get(interaction.guild.emojis, name="ShadowJam")
+            weed = discord.utils.get(interaction.guild.emojis, name="Weed_Gold")
+
+            aosgold_str = str(aosgold) if aosgold else "🟡"
+            d9_str = str(d9) if d9 else ":D9:"
+            shadow_str = str(shadow) if shadow else ":ShadowJam:"
+            weed_str = str(weed) if weed else ":Weed_Gold:"
+
             match_line = (
-                f"# 🟡 {match_row[2]} | {match_row[3]} | {match_row[4]} | "
+                f"# {aosgold_str} {match_row[2]} | {match_row[3]} | {match_row[4]} | "
                 f"{match_row[5]} | {match_row[6]} | ID: {match_row[-1]}"
             )
 
@@ -52,15 +63,6 @@ class SetLineup(commands.Cog):
                 "5v5+": 6,
                 "6v6": 6
             }.get(lineup_type.value, 5)
-
-            # Fetch custom emojis from guild
-            d9 = discord.utils.get(interaction.guild.emojis, name="D9")
-            shadow = discord.utils.get(interaction.guild.emojis, name="ShadowJam")
-            weed = discord.utils.get(interaction.guild.emojis, name="Weed_Gold")
-
-            d9_str = str(d9) if d9 else ":D9:"
-            shadow_str = str(shadow) if shadow else ":ShadowJam:"
-            weed_str = str(weed) if weed else ":Weed_Gold:"
 
             d9_line = d9_str * 10  # 10 emojis in one line
             shooters = "\n".join([shadow_str for _ in range(shooter_count)])
