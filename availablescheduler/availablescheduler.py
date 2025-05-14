@@ -15,7 +15,6 @@ class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Google Sheets setup
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
@@ -51,7 +50,6 @@ class AvailabilityScheduler(commands.Cog):
             for emoji in emojis:
                 await msg.add_reaction(emoji)
 
-            # ✅ Log to currentavailability sheet
             try:
                 self.current_sheet.append_row([
                     league.value,
@@ -91,7 +89,6 @@ class AvailabilityScheduler(commands.Cog):
                 except:
                     continue
 
-            # Delete from availability sheet
             avail_rows = self.sheet.get_all_values()
             avail_delete_rows = [
                 i + 2 for i, row in enumerate(avail_rows[1:])
@@ -100,7 +97,6 @@ class AvailabilityScheduler(commands.Cog):
             for i in reversed(avail_delete_rows):
                 self.sheet.delete_rows(i)
 
-            # Delete from currentavailability
             for i in reversed(to_delete):
                 self.current_sheet.delete_rows(i)
 
@@ -138,6 +134,7 @@ class AvailabilityScheduler(commands.Cog):
         for uid, times in users.items():
             ordered = [t for t in order if t in times]
             result += f"<@{uid}>: {', '.join(ordered)}\n"
+
         channel = discord.utils.get(interaction.guild.text_channels, name="availability")
         if channel:
             await channel.send(result)
@@ -156,7 +153,7 @@ class AvailabilityScheduler(commands.Cog):
         await interaction.response.defer()
 
         data = self.sheet.get_all_values()[1:]
-        counts = defaultdict(lambda: defaultdict(int))  # {day: {emoji: count}}
+        counts = defaultdict(lambda: defaultdict(int))
 
         for row in data:
             if len(row) < 7:
@@ -172,7 +169,8 @@ class AvailabilityScheduler(commands.Cog):
 
         lines = [f"**AOS CURRENT {league.value} AVAILABILITY**"]
         for day in days:
-('            result += f"<@{uid}>: {', '.join(ordered)}\\n"\n')            lines.append(time_line)
+            time_line = f"**{day}:** " + " | ".join([f"{time} {counts[day].get(time, 0)}" for time in times])
+            lines.append(time_line)
 
         await interaction.followup.send("\n".join(lines))
 
