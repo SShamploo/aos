@@ -64,7 +64,6 @@ class AvailabilityScheduler(commands.Cog):
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
-        self._batch_writer.start()
 
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
