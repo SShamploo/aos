@@ -32,6 +32,7 @@ class AvailabilityScheduler(commands.Cog):
 
     @tasks.loop(seconds=5)
     @tasks.loop(seconds=5)
+    @tasks.loop(seconds=5)
     async def batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
