@@ -46,7 +46,6 @@ class AvailabilityScheduler(commands.Cog):
                     seen.add(key)
                     to_log.append(entry)
             try:
-                    [r['timestamp'], r['user_name'], r['user_id'], r['emoji'], r['message_id'], r['message_text'], r['league']]
                 rows = []
                 for r in to_log:
                     rows.append([
