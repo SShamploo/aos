@@ -14,10 +14,39 @@ from collections import defaultdict, deque
 
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
+    @tasks.loop(seconds=5)
+    async def batch_writer(self):
+        async with self.write_lock:
+            if not self.reaction_queue:
+                return
+            to_log = []
+            seen = set()
+            while self.reaction_queue:
+                entry = self.reaction_queue.popleft()
+                key = (entry['user_id'], entry['emoji'], entry['message_id'])
+                if key not in seen:
+                    seen.add(key)
+                    to_log.append(entry)
+            try:
+                rows = []
+                for r in to_log:
+                    rows.append([
+                        r['timestamp'], r['user_name'], r['user_id'], r['emoji'],
+                        r['message_id'], r['message_text'], r['league']
+                    ])
+                self.sheet.append_rows(rows)
+            except Exception as e:
+                print(f"❌ Batch write failed: {e}")
+
+    async def cog_load(self):
+        self.batch_writer.start()
+
+    def cog_unload(self):
+        self.batch_writer.cancel()
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
-        self._task = AvailabilityScheduler.batch_writer_task.start()
+        self._batch_writer.start()
 
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -30,35 +59,6 @@ class AvailabilityScheduler(commands.Cog):
     def cog_unload(self):
         self._batch_writer.cancel()
 
-    @tasks.loop(seconds=5)
-    @tasks.loop(seconds=5)
-    @tasks.loop(seconds=5)
-    @tasks.loop(seconds=5)
-    async def batch_writer_task():
-        async with AvailabilityScheduler.write_lock:
-            if not AvailabilityScheduler.reaction_queue:
-                return
-            to_log = []
-            seen = set()
-            while AvailabilityScheduler.reaction_queue:
-                entry = AvailabilityScheduler.reaction_queue.popleft()
-                key = (entry['user_id'], entry['emoji'], entry['message_id'])
-                if key not in seen:
-                    seen.add(key)
-                    to_log.append(entry)
-            try:
-                rows = []
-                for r in to_log:
-                    rows.append([
-                        r['timestamp'], r['user_name'], r['user_id'], r['emoji'],
-                        r['message_id'], r['message_text'], r['league']
-                    ])
-                AvailabilityScheduler.sheet.append_rows(rows)
-            except Exception as e:
-                print(f"❌ Batch write failed: {e}")
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        await self.handle_reaction(payload, "add")
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
