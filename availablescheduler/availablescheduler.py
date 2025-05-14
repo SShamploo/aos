@@ -31,8 +31,6 @@ class AvailabilityScheduler(commands.Cog):
         self._batch_writer.cancel()
 
     @tasks.loop(seconds=5)
-    @tasks.loop(seconds=5)
-    @tasks.loop(seconds=5)
     async def _batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
