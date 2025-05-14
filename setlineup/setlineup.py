@@ -28,10 +28,15 @@ class LineupTextModal(discord.ui.Modal, title="Enter Lineup Names"):
     async def on_submit(self, interaction: discord.Interaction):
         shooters = [s.strip() for s in self.shooters_input.value.split(",") if s.strip()]
         subs = [s.strip() for s in self.subs_input.value.split(",") if s.strip()]
+        league = self.match_row[5]
+
+        role_name = "Capo" if league == "HC" else "Soldier"
+        role = discord.utils.get(interaction.guild.roles, name=role_name)
+        role_mention = role.mention if role else f"@{role_name}"
 
         match_line = (
             f"# {self.emoji_map['AOSgold']} {self.match_row[2]} | {self.match_row[3]} | {self.match_row[4]} | "
-            f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[-1]}"
+            f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[-1]} {role_mention}"
         )
 
         d9_line = self.emoji_map["D9"] * 10
@@ -52,9 +57,7 @@ class LineupTextModal(discord.ui.Modal, title="Enter Lineup Names"):
         timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         match_id = str(self.match_id)
         enemy_team = self.match_row[4]
-        league = self.match_row[5]
 
-        # Pad shooters and subs to fixed size
         shooters += [""] * (6 - len(shooters))
         subs += [""] * (2 - len(subs))
 
