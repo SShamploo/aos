@@ -25,6 +25,14 @@ class AvailabilityScheduler(commands.Cog):
         self.sheet = self.gc.open("AOS").worksheet("availability")
         self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
     @tasks.loop(seconds=5)
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        await self.handle_reaction(payload, "add")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        await self.handle_reaction(payload, "remove")
+
     async def batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
@@ -75,6 +83,7 @@ class AvailabilityScheduler(commands.Cog):
         await self.handle_reaction(payload, "remove")
 
     async def handle_reaction(self, payload, event_type: str):
+        print(f"📥 Queuing reaction: {event_type} from {payload.user_id}")
         if payload.user_id == self.bot.user.id:
             return
 
