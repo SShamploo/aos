@@ -36,7 +36,6 @@ class LineupModal1(discord.ui.Modal):
         else:
             await finalize_lineup(interaction, self.key)
 
-
 class ContinueToSubView(discord.ui.View):
     def __init__(self, key):
         super().__init__(timeout=300)
@@ -45,7 +44,6 @@ class ContinueToSubView(discord.ui.View):
     @discord.ui.button(label="Continue to Sub Input", style=discord.ButtonStyle.primary)
     async def continue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(LineupModal2(self.key))
-
 
 class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
     def __init__(self, key):
@@ -70,7 +68,6 @@ class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
             f"{ctx['emoji_map']['Weed_Gold']} {self.sub2.value}"
         ]
         await finalize_lineup(interaction, self.key)
-
 
 async def finalize_lineup(interaction: discord.Interaction, key: str):
     ctx = TEMP_LINEUPS.pop(key, None)
@@ -112,7 +109,6 @@ async def finalize_lineup(interaction: discord.Interaction, key: str):
     for j, line in enumerate(ctx.get("subs", []), 1):
         sheet.append_row([timestamp, match_id, f"Sub {j}", line.split(' ', 1)[1]])
 
-
 class SetLineup(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -135,15 +131,13 @@ class SetLineup(commands.Cog):
         ]
     )
     async def setlineup(self, interaction: discord.Interaction, match_id: int, lineup_type: app_commands.Choice[str]):
-        await interaction.response.defer(thinking=True)
-
         try:
             data = self.match_sheet.get_all_values()
             rows = data[1:]
             match_row = next((row for row in rows if row[-1] == str(match_id)), None)
 
             if not match_row:
-                await interaction.followup.send("❌ Match ID not found.")
+                await interaction.response.send_message("❌ Match ID not found.", ephemeral=True)
                 return
 
             player_count = {
@@ -170,7 +164,7 @@ class SetLineup(commands.Cog):
             await interaction.response.send_modal(LineupModal1(key, player_count))
 
         except Exception as e:
-            await interaction.followup.send(f"❌ Error: {e}")
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(SetLineup(bot))
