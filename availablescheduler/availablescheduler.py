@@ -2,7 +2,17 @@
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-from datetime import datetime, timedelta
+    def __init__(self, bot):
+        self.bot = bot
+        self.reaction_queue = deque()
+        self.write_lock = asyncio.Lock()
+        load_dotenv()
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
+        self.gc = gspread.authorize(creds)
+        self.sheet = self.gc.open("AOS").worksheet("availability")
+        self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
 import os
 import json
 import base64
