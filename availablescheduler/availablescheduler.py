@@ -43,7 +43,6 @@ class AvailabilityScheduler(commands.Cog):
         today = datetime.now().date()
         sunday = today - timedelta(days=(today.weekday() + 1) % 7)
 
-        
         rows_to_append = []
         for i in range(7):
             day = sunday + timedelta(days=i)
@@ -57,9 +56,6 @@ class AvailabilityScheduler(commands.Cog):
             self.current_sheet.append_rows(rows_to_append)
         except Exception as e:
             print(f"⚠️ Failed to write to currentavailability sheet: {e}")
-
-            except Exception as e:
-                print(f"⚠️ Failed to write to currentavailability sheet: {e}")
 
         await interaction.followup.send(f"✅ Posted availability for {league.value}", ephemeral=True)
 
