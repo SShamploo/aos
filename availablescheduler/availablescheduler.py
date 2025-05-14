@@ -42,6 +42,7 @@ class AvailabilityScheduler(commands.Cog):
                 json.dump(data, f)
         except Exception as e:
             print(f"❌ Failed to cache reaction: {e}")
+
         data.append(entry)
         with cache_path.open("w") as f:
         json.dump(data, f)
