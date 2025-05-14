@@ -31,26 +31,26 @@ class AvailabilityScheduler(commands.Cog):
         self.batch_writer.cancel()
 
     @tasks.loop(seconds=5)
+    @tasks.loop(seconds=5)
     async def batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
                 return
-
             to_log = []
             seen = set()
             while self.reaction_queue:
                 entry = self.reaction_queue.popleft()
-                key = (entry["user_id"], entry["emoji"], entry["message_id"])
+                key = (entry['user_id'], entry['emoji'], entry['message_id'])
                 if key not in seen:
                     seen.add(key)
                     to_log.append(entry)
-
             try:
                 self.sheet.append_rows([
                     [r['timestamp'], r['user_name'], r['user_id'], r['emoji'], r['message_id'], r['message_text'], r['league']]
                     for r in to_log
                 ])
             except Exception as e:
+                print(f"❌ Batch write failed: {e}")
                 print(f"❌ Batch write failed: {e}")
 
     @commands.Cog.listener()
