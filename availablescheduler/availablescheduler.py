@@ -46,12 +46,15 @@ class AvailabilityScheduler(commands.Cog):
                     seen.add(key)
                     to_log.append(entry)
             try:
+                self.sheet.append_rows([
                     [r['timestamp'], r['user_name'], r['user_id'], r['emoji'], r['message_id'], r['message_text'], r['league']]
-                    for r in to_log
-                ])
-            except Exception as e:
-                print(f"❌ Batch write failed: {e}")
-
+                rows = []
+                for r in to_log:
+                    rows.append([
+                        r['timestamp'], r['user_name'], r['user_id'], r['emoji'],
+                        r['message_id'], r['message_text'], r['league']
+                    ])
+                self.sheet.append_rows(rows)
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         await self.handle_reaction(payload, "add")
