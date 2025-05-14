@@ -240,4 +240,3 @@ class AvailabilityScheduler(commands.Cog):
     async def setup(bot):
         await bot.add_cog(AvailabilityScheduler(bot))
 
-    await bot.add_cog(AvailabilityScheduler(bot))
