@@ -137,8 +137,7 @@ class AvailabilityScheduler(commands.Cog):
 
         for uid, times in users.items():
             ordered = [t for t in order if t in times]
-            result += f"<@{uid}>: {", ".join(ordered)}\n"
-
+('            result += f"<@{uid}>: {', '.join(ordered)}\\n"\n')
         channel = discord.utils.get(interaction.guild.text_channels, name="availability")
         if channel:
             await channel.send(result)
@@ -173,8 +172,7 @@ class AvailabilityScheduler(commands.Cog):
 
         lines = [f"**AOS CURRENT {league.value} AVAILABILITY**"]
         for day in days:
-            time_line = f"**{day}:** " + " | ".join([f"{time} {counts[day].get(time, 0)}" for time in times])
-            lines.append(time_line)
+('            result += f"<@{uid}>: {', '.join(ordered)}\\n"\n')            lines.append(time_line)
 
         await interaction.followup.send("\n".join(lines))
 
