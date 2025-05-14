@@ -33,6 +33,7 @@ class AvailabilityScheduler(commands.Cog):
     async def on_raw_reaction_remove(self, payload):
         await self.handle_reaction(payload, "remove")
 
+    @tasks.loop(seconds=30)
     async def batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
