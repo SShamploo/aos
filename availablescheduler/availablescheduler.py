@@ -17,7 +17,7 @@ class AvailabilityScheduler(commands.Cog):
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
-        self._batch_writer.start()
+        self._task = AvailabilityScheduler.batch_writer_task.start()
 
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -33,14 +33,15 @@ class AvailabilityScheduler(commands.Cog):
     @tasks.loop(seconds=5)
     @tasks.loop(seconds=5)
     @tasks.loop(seconds=5)
-    async def _batch_writer(self):
-        async with self.write_lock:
-            if not self.reaction_queue:
+    @tasks.loop(seconds=5)
+    async def batch_writer_task():
+        async with AvailabilityScheduler.write_lock:
+            if not AvailabilityScheduler.reaction_queue:
                 return
             to_log = []
             seen = set()
-            while self.reaction_queue:
-                entry = self.reaction_queue.popleft()
+            while AvailabilityScheduler.reaction_queue:
+                entry = AvailabilityScheduler.reaction_queue.popleft()
                 key = (entry['user_id'], entry['emoji'], entry['message_id'])
                 if key not in seen:
                     seen.add(key)
@@ -52,7 +53,7 @@ class AvailabilityScheduler(commands.Cog):
                         r['timestamp'], r['user_name'], r['user_id'], r['emoji'],
                         r['message_id'], r['message_text'], r['league']
                     ])
-                self.sheet.append_rows(rows)
+                AvailabilityScheduler.sheet.append_rows(rows)
             except Exception as e:
                 print(f"❌ Batch write failed: {e}")
     @commands.Cog.listener()
