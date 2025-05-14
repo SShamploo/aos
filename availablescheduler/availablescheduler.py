@@ -48,14 +48,13 @@ class AvailabilityScheduler(commands.Cog):
             rows = self.sheet.get_all_values()
             existing = {(r[2], r[3], r[4]) for r in rows[1:] if len(r) >= 5}
 
-            for r in to_log:
-                if (r["user_id"], r["emoji"], r["message_id"]) not in existing:
-                    try:
-                        self.sheet.append_row([
-                            r["timestamp"], r["user_name"], r["user_id"], r["emoji"],
-                            r["message_id"], r["message_text"], r["league"]
-                        ])
-                    except Exception as e:
+            try:
+                self.sheet.append_rows([
+                    [r['timestamp'], r['user_name'], r['user_id'], r['emoji'], r['message_id'], r['message_text'], r['league']]
+                    for r in to_log
+                ])
+            except Exception as e:
+                print(f"❌ Batch write failed: {e}")
                         print(f"❌ Batch write failed: {e}")
 
     @commands.Cog.listener()
