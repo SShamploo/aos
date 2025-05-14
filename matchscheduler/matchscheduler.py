@@ -27,10 +27,13 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
+            # Defer response early to prevent timeout
+            await interaction.response.defer(ephemeral=True)
+
             # Directly fetch the channel by ID
             channel = interaction.guild.get_channel(1360237474454175814)
             if not channel:
-                await interaction.response.send_message("❌ Could not find the match schedule channel.", ephemeral=True)
+                await interaction.followup.send("❌ Could not find the match schedule channel.", ephemeral=True)
                 return
 
             emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
@@ -40,16 +43,16 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             role = discord.utils.get(interaction.guild.roles, name=role_name)
             role_mention = role.mention if role else f"@{role_name}"
 
-            message = (
-                f"# {emoji_str} {self.date.value} | {self.time.value} | "
-                f"{self.enemy_team.value} | {self.league} | {self.match_type} {role_mention}"
-            )
-            await channel.send(message)
-            await interaction.response.send_message("✅ Match scheduled successfully!", ephemeral=True)
-
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             existing_rows = self.sheet.get_all_values()
             match_id = len(existing_rows)  # Start at 1 assuming first row is headers
+
+            message = (
+                f"# {emoji_str} {self.date.value} | {self.time.value} | "
+                f"{self.enemy_team.value} | {self.league} | {self.match_type} | ID: {match_id} {role_mention}"
+            )
+            await channel.send(message)
+            await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
 
             self.sheet.append_row([
                 timestamp,
@@ -63,9 +66,9 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             ])
         except Exception as e:
             try:
-                await interaction.response.send_message(f"❌ An error occurred: {e}", ephemeral=True)
-            except:
                 await interaction.followup.send(f"❌ An error occurred: {e}", ephemeral=True)
+            except:
+                pass
 
 class MatchScheduler(commands.Cog):
     def __init__(self, bot):
