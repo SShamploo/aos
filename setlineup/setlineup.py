@@ -33,7 +33,6 @@ class SetLineup(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         try:
             data = self.sheet.get_all_values()
-            headers = data[0]
             rows = data[1:]
             match_row = next((row for row in rows if row[-1] == str(match_id)), None)
 
@@ -53,15 +52,24 @@ class SetLineup(commands.Cog):
                 "6v6": 6
             }.get(lineup_type.value, 5)
 
-            shooters = "\n".join([":ShadowJam:" for _ in range(shooter_count)])
-            subs = "\n".join([":Weed_Gold:" for _ in range(2)])
+            # Fetch custom emojis from guild
+            d9 = discord.utils.get(interaction.guild.emojis, name="D9")
+            shadow = discord.utils.get(interaction.guild.emojis, name="ShadowJam")
+            weed = discord.utils.get(interaction.guild.emojis, name="Weed_Gold")
+
+            d9_str = str(d9) if d9 else ":D9:"
+            shadow_str = str(shadow) if shadow else ":ShadowJam:"
+            weed_str = str(weed) if weed else ":Weed_Gold:"
+
+            shooters = "\n".join([shadow_str for _ in range(shooter_count)])
+            subs = "\n".join([weed_str for _ in range(2)])
 
             message = (
                 f"{match_line}\n"
-                ":D9:\n**Shooters:**\n"
+                f"{d9_str}\n**Shooters:**\n"
                 f"{shooters}\n"
-                ":D9:\n**Subs:**\n"
-                f"{subs}\n:D9:"
+                f"{d9_str}\n**Subs:**\n"
+                f"{subs}\n{d9_str}"
             )
 
             await interaction.followup.send(message)
