@@ -50,17 +50,22 @@ class LineupTextModal(discord.ui.Modal, title="Enter Lineup Names"):
         await interaction.response.send_message(message)
 
         timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        all_rows = self.sheet.get_all_values()
         match_id = str(self.match_id)
+        enemy_team = self.match_row[4]
+        league = self.match_row[5]
 
+        # Pad shooters and subs to fixed size
+        shooters += [""] * (6 - len(shooters))
+        subs += [""] * (2 - len(subs))
+
+        row = [timestamp, match_id, enemy_team, league] + shooters[:6] + subs[:2]
+
+        all_rows = self.sheet.get_all_values()
         to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == match_id]
         for idx in reversed(to_delete):
             self.sheet.delete_rows(idx)
 
-        for i, name in enumerate(shooters, 1):
-            self.sheet.append_row([timestamp, match_id, f"Player {i}", name])
-        for j, name in enumerate(subs, 1):
-            self.sheet.append_row([timestamp, match_id, f"Sub {j}", name])
+        self.sheet.append_row(row)
 
 class SetLineup(commands.Cog):
     def __init__(self, bot):
