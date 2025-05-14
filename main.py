@@ -32,7 +32,7 @@ initial_extensions = [
     "playerinfo.playerinformation",
     "matchscheduler.matchscheduler",
     "availablescheduler.availablescheduler",
-    "AOS.setlineup.setlineup"  # ✅ Added setlineup extension
+    "setlineup.setlineup"  # ✅ Added setlineup extension
 ]
 
 async def load_cogs():
