@@ -53,6 +53,8 @@ class AvailabilityScheduler(commands.Cog):
                         r['message_id'], r['message_text'], r['league']
                     ])
                 self.sheet.append_rows(rows)
+            except Exception as e:
+                print(f"❌ Batch write failed: {e}")
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         await self.handle_reaction(payload, "add")
