@@ -14,16 +14,6 @@ class AvailabilityScheduler(commands.Cog):
         self.gc = gspread.authorize(creds)
         self.sheet = self.gc.open("AOS").worksheet("availability")
         self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
-        self.bot = bot
-        self.reaction_queue = deque()
-        self.write_lock = asyncio.Lock()
-        load_dotenv()
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-        self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS").worksheet("availability")
-        self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
         import os
         import json
         import base64
@@ -38,16 +28,6 @@ class AvailabilityScheduler(commands.Cog):
 
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
-        self.reaction_queue = deque()
-        self.write_lock = asyncio.Lock()
-        load_dotenv()
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-        self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS").worksheet("availability")
-        self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
 
     def cache_reaction(self, entry):
         cache_path = Path("reaction_cache.json")
@@ -87,7 +67,7 @@ class AvailabilityScheduler(commands.Cog):
         async def on_raw_reaction_remove(self, payload):
         await self.handle_reaction(payload, "remove")
 
-        async def batch_writer(self):
+    async def batch_writer(self):
         async with self.write_lock:
         if not self.reaction_queue:
         return
@@ -314,7 +294,7 @@ class AvailabilityScheduler(commands.Cog):
 
 
     @tasks.loop(seconds=30)
-        async def batch_writer(self):
+    async def batch_writer(self):
         from pathlib import Path
         cache_path = Path("reaction_cache.json")
         if not cache_path.exists():
