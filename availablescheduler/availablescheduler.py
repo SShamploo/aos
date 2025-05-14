@@ -26,7 +26,7 @@ class AvailabilityScheduler(commands.Cog):
         from oauth2client.service_account import ServiceAccountCredentials
         from collections import defaultdict, deque
 
-        class AvailabilityScheduler(commands.Cog):
+class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
 
     def cache_reaction(self, entry):
