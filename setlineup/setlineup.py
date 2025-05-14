@@ -9,52 +9,86 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
-class LineupModal(discord.ui.Modal):
+class LineupModal1(discord.ui.Modal):
     def __init__(self, match_row, emoji_map, player_count, sheet, match_id):
-        super().__init__(title="Enter Player Names", timeout=None)
+        super().__init__(title="Enter Shooters (1/2)", timeout=None)
         self.match_row = match_row
         self.emoji_map = emoji_map
         self.sheet = sheet
         self.match_id = match_id
+        self.player_count = player_count
         self.player_inputs = []
 
-        for i in range(player_count):
-            player_input = discord.ui.TextInput(label=f"Player {i + 1}", required=True)
-            self.add_item(player_input)
-            self.player_inputs.append(player_input)
+        for i in range(min(player_count, 5)):
+            field = discord.ui.TextInput(label=f"Player {i + 1}", required=True)
+            self.add_item(field)
+            self.player_inputs.append(field)
 
     async def on_submit(self, interaction: discord.Interaction):
-        try:
-            match_line = (
-                f"# {self.emoji_map['AOSgold']} {self.match_row[2]} | {self.match_row[3]} | {self.match_row[4]} | "
-                f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[-1]}"
-            )
+        names = [f"{self.emoji_map['ShadowJam']} {field.value}" for field in self.player_inputs]
+        interaction.client.temp_lineup = {
+            "match_row": self.match_row,
+            "emoji_map": self.emoji_map,
+            "shooters": names,
+            "sheet": self.sheet,
+            "match_id": self.match_id,
+            "player_count": self.player_count
+        }
 
-            d9_line = self.emoji_map["D9"] * 10
-            shooters = "\n".join([f"{self.emoji_map['ShadowJam']} {input.value}" for input in self.player_inputs])
-            subs = "\n".join([f"{self.emoji_map['Weed_Gold']} Sub1", f"{self.emoji_map['Weed_Gold']} Sub2"])
+        if self.player_count > 5:
+            await interaction.response.send_modal(LineupModal2())
+        else:
+            await finalize_lineup(interaction)
 
-            message = (
-                f"{match_line}\n"
-                f"{d9_line}\n**Shooters:**\n"
-                f"{shooters}\n"
-                f"{d9_line}\n**Subs:**\n"
-                f"{subs}\n{d9_line}"
-            )
 
-            await interaction.response.send_message(message)
+class LineupModal2(discord.ui.Modal, title="Enter Shooters (2/2) + Subs"):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.player6 = discord.ui.TextInput(label="Player 6", required=True)
+        self.sub1 = discord.ui.TextInput(label="Sub 1", required=True)
+        self.sub2 = discord.ui.TextInput(label="Sub 2", required=True)
+        self.add_item(self.player6)
+        self.add_item(self.sub1)
+        self.add_item(self.sub2)
 
-            timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            for i, input in enumerate(self.player_inputs):
-                self.sheet.append_row([
-                    timestamp,
-                    self.match_id,
-                    f"Player {i + 1}",
-                    input.value
-                ])
+    async def on_submit(self, interaction: discord.Interaction):
+        ctx = interaction.client.temp_lineup
+        ctx["shooters"].append(f"{ctx['emoji_map']['ShadowJam']} {self.player6.value}")
+        ctx["subs"] = [
+            f"{ctx['emoji_map']['Weed_Gold']} {self.sub1.value}",
+            f"{ctx['emoji_map']['Weed_Gold']} {self.sub2.value}"
+        ]
+        await finalize_lineup(interaction)
 
-        except Exception as e:
-            await interaction.followup.send(f"❌ Error: {e}")
+
+async def finalize_lineup(interaction: discord.Interaction):
+    ctx = interaction.client.temp_lineup
+    match_line = (
+        f"# {ctx['emoji_map']['AOSgold']} {ctx['match_row'][2]} | {ctx['match_row'][3]} | "
+        f"{ctx['match_row'][4]} | {ctx['match_row'][5]} | {ctx['match_row'][6]} | ID: {ctx['match_row'][-1]}"
+    )
+    d9_line = ctx["emoji_map"]["D9"] * 10
+    shooters = "\n".join(ctx["shooters"])
+    subs = "\n".join(ctx.get("subs", [
+        f"{ctx['emoji_map']['Weed_Gold']} Sub1",
+        f"{ctx['emoji_map']['Weed_Gold']} Sub2"
+    ]))
+
+    message = (
+        f"{match_line}\n"
+        f"{d9_line}\n**Shooters:**\n"
+        f"{shooters}\n"
+        f"{d9_line}\n**Subs:**\n"
+        f"{subs}\n{d9_line}"
+    )
+    await interaction.response.send_message(message)
+
+    timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    for i, line in enumerate(ctx["shooters"], 1):
+        ctx["sheet"].append_row([timestamp, ctx["match_id"], f"Player {i}", line.split(' ', 1)[1]])
+    for j, line in enumerate(ctx.get("subs", []), 1):
+        ctx["sheet"].append_row([timestamp, ctx["match_id"], f"Sub {j}", line.split(' ', 1)[1]])
+
 
 class SetLineup(commands.Cog):
     def __init__(self, bot):
@@ -96,14 +130,12 @@ class SetLineup(commands.Cog):
                 "6v6": 6
             }.get(lineup_type.value, 5)
 
-            # Fetch emojis
             emoji_map = {}
             for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
                 emoji = discord.utils.get(interaction.guild.emojis, name=name)
                 emoji_map[name] = str(emoji) if emoji else f":{name}:"
 
-            await interaction.followup.send("📋 Please enter player names...", ephemeral=True)
-            await interaction.response.send_modal(LineupModal(match_row, emoji_map, player_count, self.lineup_sheet, match_id))
+            await interaction.response.send_modal(LineupModal1(match_row, emoji_map, player_count, self.lineup_sheet, match_id))
 
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {e}")
