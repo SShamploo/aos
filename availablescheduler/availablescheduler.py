@@ -14,36 +14,34 @@ class AvailabilityScheduler(commands.Cog):
         self.gc = gspread.authorize(creds)
         self.sheet = self.gc.open("AOS").worksheet("availability")
         self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
-        self.bot = bot
-        self.reaction_queue = deque()
-        self.write_lock = asyncio.Lock()
-        load_dotenv()
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-        self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS").worksheet("availability")
-        self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
         import os
         import json
         import base64
         import gspread
         import asyncio
+
         import json
         from pathlib import Path
         from dotenv import load_dotenv
         from oauth2client.service_account import ServiceAccountCredentials
         from collections import defaultdict, deque
+
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
+
     def cache_reaction(self, entry):
         cache_path = Path("reaction_cache.json")
         try:
-        if cache_path.exists():
-        with cache_path.open("r") as f:
-        data = json.load(f)
-        else:
-        data = []
+            if cache_path.exists():
+                with cache_path.open("r") as f:
+                    data = json.load(f)
+            else:
+                data = []
+            data.append(entry)
+            with cache_path.open("w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            print(f"❌ Failed to cache reaction: {e}")
         data.append(entry)
         with cache_path.open("w") as f:
         json.dump(data, f)
@@ -63,9 +61,11 @@ class AvailabilityScheduler(commands.Cog):
     @commands.Cog.listener()
         async def on_raw_reaction_add(self, payload):
         await self.handle_reaction(payload, "add")
+
     @commands.Cog.listener()
         async def on_raw_reaction_remove(self, payload):
         await self.handle_reaction(payload, "remove")
+
         async def batch_writer(self):
         async with self.write_lock:
         if not self.reaction_queue:
@@ -88,13 +88,16 @@ class AvailabilityScheduler(commands.Cog):
         self.sheet.append_rows(rows)
         except Exception as e:
         print(f"❌ Batch write failed: {e}")
+
         async def cog_load(self):
         self.batch_writer.start()
+
     def cog_unload(self):
         self.batch_writer.cancel()
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
+
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
@@ -102,33 +105,44 @@ class AvailabilityScheduler(commands.Cog):
         self.gc = gspread.authorize(creds)
         self.sheet = self.gc.open("AOS").worksheet("availability")
         self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
+
     def cog_unload(self):
         self._batch_writer.cancel()
+
+
     @commands.Cog.listener()
         async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
         await self.handle_reaction(payload, "remove")
+
         async def handle_reaction(self, payload, event_type: str):
         print(f"📥 Queuing reaction: {event_type} from {payload.user_id}")
         if payload.user_id == self.bot.user.id:
         return
+
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
         return
+
         member = guild.get_member(payload.user_id)
         if not member or member.bot:
         return
+
         channel_id = str(payload.channel_id)
         message_id = str(payload.message_id)
         emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         try:
         current_rows = self.current_sheet.get_all_values()[1:]
         matched_row = next((r for r in current_rows if r[1] == channel_id and r[2] == message_id), None)
+
         if not matched_row:
         return
+
         league = matched_row[0]
         full_text = matched_row[3]
         message_text = full_text.split()[0].upper()
+
         if event_type == "add":
         self.cache_reaction({
         "timestamp": timestamp,
@@ -146,8 +160,11 @@ class AvailabilityScheduler(commands.Cog):
         self.sheet.delete_rows(i)
         print(f"🗑️ Removed: {emoji} by {member.name} on {message_text}")
         break
+
         except Exception as e:
         print(f"❌ Reaction tracking failed: {e}")
+
+
     @app_commands.command(name="sendavailability", description="Post availability messages for a league.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
@@ -178,6 +195,7 @@ class AvailabilityScheduler(commands.Cog):
         except Exception as e:
         print(f"⚠️ Failed to write to currentavailability sheet: {e}")
         await interaction.followup.send(f"✅ Posted availability for {league.value}", ephemeral=True)
+
     @app_commands.command(name="deleteavailability", description="Delete availability messages and clear sheet rows.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
@@ -213,6 +231,7 @@ class AvailabilityScheduler(commands.Cog):
         except Exception as e:
         print(f"⚠️ Error during deleteavailability: {e}")
         await interaction.followup.send(f"🗑️ Deleted {deleted} messages and cleaned up Google Sheets for {league.value}.", ephemeral=True)
+
     @app_commands.command(name="availability", description="Display availability for a specific league and day.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")],
@@ -244,6 +263,7 @@ class AvailabilityScheduler(commands.Cog):
         await interaction.followup.send("✅ Sent to #availability", ephemeral=True)
         else:
         await interaction.followup.send(result, ephemeral=True)
+
     @app_commands.command(name="checkavailability", description="Check current availability numbers for HC or AL")
     @app_commands.choices(
         league=[
@@ -270,27 +290,33 @@ class AvailabilityScheduler(commands.Cog):
         time_line = f"**{day}:** " + " | ".join([f"{time} {counts[day].get(time, 0)}" for time in times])
         lines.append(time_line)
         await interaction.followup.send("\n".join(lines))
+
+
     @tasks.loop(seconds=30)
         async def batch_writer(self):
         from pathlib import Path
         cache_path = Path("reaction_cache.json")
         if not cache_path.exists():
         return
+
         try:
         with cache_path.open("r") as f:
         data = json.load(f)
         if not data:
         return
+
         rows = [
         [r["timestamp"], r["user_name"], r["user_id"], r["emoji"], r["message_id"], r["message_text"], r["league"]]
         for r in data
         ]
         self.sheet.append_rows(rows)
         print(f"✅ Uploaded {len(rows)} reactions from cache")
+
         with cache_path.open("w") as f:
         json.dump([], f)
         except Exception as e:
         print(f"❌ Failed to flush reactions to sheet: {e}")
+
     @app_commands.command(name="sendavailability", description="Post availability messages for a league.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
@@ -322,6 +348,7 @@ class AvailabilityScheduler(commands.Cog):
         except Exception as e:
         print(f"⚠️ Failed to write to currentavailability sheet: {e}")
         await interaction.followup.send(f"✅ Posted availability for {league.value}", ephemeral=True)
+
     @app_commands.command(name="deleteavailability", description="Delete availability messages and clear sheet rows.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
@@ -357,6 +384,7 @@ class AvailabilityScheduler(commands.Cog):
         except Exception as e:
         print(f"⚠️ Error during deleteavailability: {e}")
         await interaction.followup.send(f"🗑️ Deleted {deleted} messages and cleaned up Google Sheets for {league.value}.", ephemeral=True)
+
     @app_commands.command(name="availability", description="Display availability for a specific league and day.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")],
@@ -385,6 +413,7 @@ class AvailabilityScheduler(commands.Cog):
         await interaction.followup.send("✅ Sent to #availability", ephemeral=True)
         else:
         await interaction.followup.send(result, ephemeral=True)
+
     @app_commands.command(name="checkavailability", description="Check current availability numbers for HC or AL")
     @app_commands.choices(
         league=[
