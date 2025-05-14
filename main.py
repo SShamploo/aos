@@ -1,3 +1,4 @@
+
 print("👋 main.py is running...")
 
 import discord
@@ -30,7 +31,8 @@ initial_extensions = [
     "Results.results",
     "playerinfo.playerinformation",
     "matchscheduler.matchscheduler",
-    "availablescheduler.availablescheduler"
+    "availablescheduler.availablescheduler",
+    "AOS.setlineup.setlineup"  # ✅ Added setlineup extension
 ]
 
 async def load_cogs():
