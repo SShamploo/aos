@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -47,6 +48,9 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            existing_rows = self.sheet.get_all_values()
+            match_id = len(existing_rows)  # Start at 1 assuming first row is headers
+
             self.sheet.append_row([
                 timestamp,
                 str(interaction.user),
@@ -54,7 +58,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
                 self.time.value,
                 self.enemy_team.value,
                 self.league,
-                self.match_type
+                self.match_type,
+                match_id
             ])
         except Exception as e:
             print(f"⚠️ Failed to write to Google Sheet: {e}")
