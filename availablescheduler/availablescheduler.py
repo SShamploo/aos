@@ -17,7 +17,7 @@ class AvailabilityScheduler(commands.Cog):
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
-        self.batch_writer.start()
+        self._batch_writer.start()
 
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -28,12 +28,12 @@ class AvailabilityScheduler(commands.Cog):
         self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
 
     def cog_unload(self):
-        self.batch_writer.cancel()
+        self._batch_writer.cancel()
 
     @tasks.loop(seconds=5)
     @tasks.loop(seconds=5)
     @tasks.loop(seconds=5)
-    async def batch_writer(self):
+    async def _batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
                 return
