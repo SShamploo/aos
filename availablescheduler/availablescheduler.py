@@ -127,8 +127,7 @@ class AvailabilityScheduler(commands.Cog):
             return
 
         order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-        result = f"**{day.value}**
-"
+        result = f"**{day.value}**\n"
         users = {}
 
         for r in relevant:
