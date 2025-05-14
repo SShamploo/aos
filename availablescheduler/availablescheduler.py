@@ -2,177 +2,116 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timedelta
 import os
 import json
 import base64
 import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
-from collections import defaultdict
 
-class AvailabilityScheduler(commands.Cog):
+class LineupTextModal(discord.ui.Modal, title="Enter Lineup Names"):
+    def __init__(self, match_row, emoji_map, match_id, sheet):
+        super().__init__(timeout=None)
+        self.match_row = match_row
+        self.emoji_map = emoji_map
+        self.match_id = match_id
+        self.sheet = sheet
+
+        self.shooters_input = discord.ui.TextInput(
+            label="Shooters (comma-separated)", placeholder="e.g. Name1, Name2, Name3", required=True, style=discord.TextStyle.paragraph)
+        self.subs_input = discord.ui.TextInput(
+            label="Subs (comma-separated)", placeholder="e.g. Sub1, Sub2", required=False, style=discord.TextStyle.paragraph)
+
+        self.add_item(self.shooters_input)
+        self.add_item(self.subs_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        shooters = [s.strip() for s in self.shooters_input.value.split(",") if s.strip()]
+        subs = [s.strip() for s in self.subs_input.value.split(",") if s.strip()]
+        league = self.match_row[5]
+
+        role_name = "Capo" if league == "HC" else "Soldier"
+        role = discord.utils.get(interaction.guild.roles, name=role_name)
+        role_mention = role.mention if role else f"@{role_name}"
+
+        match_line = (
+            f"# {self.emoji_map['AOSgold']} {self.match_row[2]} | {self.match_row[3]} | {self.match_row[4]} | "
+            f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[-1]} {role_mention}"
+        )
+
+        d9_line = self.emoji_map["D9"] * 10
+        shooters_lines = "\n".join([f"{self.emoji_map['ShadowJam']} {name}" for name in shooters])
+        subs_lines = "\n".join([f"{self.emoji_map['Weed_Gold']} {name}" for name in subs]) if subs else f"{self.emoji_map['Weed_Gold']} None"
+
+        message = (
+            f"{match_line}\n"
+            f"{d9_line}\n**Shooters:**\n"
+            f"{shooters_lines}\n"
+            f"{d9_line}\n**Subs:**\n"
+            f"{subs_lines}\n"
+            f"{d9_line}"
+        )
+
+        await interaction.response.send_message(message)
+
+        timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        match_id = str(self.match_id)
+        enemy_team = self.match_row[4]
+
+        shooters += [""] * (6 - len(shooters))
+        subs += [""] * (2 - len(subs))
+
+        new_row = [timestamp, match_id, enemy_team, league] + shooters[:6] + subs[:2]
+
+        # Delete old entries
+        all_rows = self.sheet.get_all_values()
+        to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == match_id]
+        for idx in reversed(to_delete):
+            self.sheet.delete_rows(idx)
+
+        # Write the new row using batch method
+        self.sheet.append_rows([new_row])
+
+class SetLineup(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
+        creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
+        creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
-        self.gc = gspread.authorize(creds)
-        self.sheet = self.gc.open("AOS").worksheet("availability")
-        self.current_sheet = self.gc.open("AOS").worksheet("currentavailability")
+        self.client = gspread.authorize(creds)
+        self.match_sheet = self.client.open("AOS").worksheet("matches")
+        self.lineup_sheet = self.client.open("AOS").worksheet("lineups")
 
-    @app_commands.command(name="sendavailability", description="Post availability messages for a league.")
+    @app_commands.command(name="setlineup", description="Post lineup for a scheduled match.")
     @app_commands.choices(
-        league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
+        lineup_type=[
+            app_commands.Choice(name="4v4", value="4v4"),
+            app_commands.Choice(name="5v5", value="5v5"),
+            app_commands.Choice(name="5v5+", value="5v5+"),
+            app_commands.Choice(name="6v6", value="6v6"),
+        ]
     )
-    async def sendavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=True)
+    async def setlineup(self, interaction: discord.Interaction, match_id: int, lineup_type: app_commands.Choice[str]):
+        try:
+            data = self.match_sheet.get_all_values()
+            rows = data[1:]
+            match_row = next((row for row in rows if row[-1] == str(match_id)), None)
 
-        emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-        emojis = []
-        for name in emoji_names:
-            emoji = discord.utils.get(interaction.guild.emojis, name=name)
-            if emoji:
-                emojis.append(emoji)
-            else:
-                await interaction.followup.send(f"❌ Emoji `{name}` not found.", ephemeral=True)
+            if not match_row:
+                await interaction.response.send_message("❌ Match ID not found.", ephemeral=True)
                 return
 
-        today = datetime.now().date()
-        sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+            emoji_map = {}
+            for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
+                emoji = discord.utils.get(interaction.guild.emojis, name=name)
+                emoji_map[name] = str(emoji) if emoji else f":{name}:"
 
-        for i in range(7):
-            day = sunday + timedelta(days=i)
-            label = f"{day.strftime('%A').upper()} {day.strftime('%m/%d')} | {league.value}"
-            msg = await interaction.channel.send(f"**{label}**")
-            for emoji in emojis:
-                await msg.add_reaction(emoji)
-
-            try:
-                self.current_sheet.append_row([
-                    league.value,
-                    str(interaction.channel.id),
-                    str(msg.id),
-                    label
-                ])
-            except Exception as e:
-                print(f"⚠️ Failed to write to currentavailability sheet: {e}")
-
-        await interaction.followup.send(f"✅ Posted availability for {league.value}", ephemeral=True)
-
-    @app_commands.command(name="deleteavailability", description="Delete availability messages and clear sheet rows.")
-    @app_commands.choices(
-        league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
-    )
-    async def deleteavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=True)
-
-        deleted = 0
-        channel_id = str(interaction.channel.id)
-        try:
-            rows = self.current_sheet.get_all_values()[1:]
-            to_delete = []
-            msg_ids_to_delete = []
-
-            for i, row in enumerate(rows):
-                if row[0] == league.value and row[1] == channel_id:
-                    to_delete.append(i + 2)
-                    msg_ids_to_delete.append(row[2])
-
-            for msg_id in msg_ids_to_delete:
-                try:
-                    msg = await interaction.channel.fetch_message(msg_id)
-                    await msg.delete()
-                    deleted += 1
-                except:
-                    continue
-
-            avail_rows = self.sheet.get_all_values()
-            avail_delete_rows = [
-                i + 2 for i, row in enumerate(avail_rows[1:])
-                if row[4] in msg_ids_to_delete and row[6] == league.value
-            ]
-            for i in reversed(avail_delete_rows):
-                self.sheet.delete_rows(i)
-
-            for i in reversed(to_delete):
-                self.current_sheet.delete_rows(i)
+            await interaction.response.send_modal(LineupTextModal(match_row, emoji_map, match_id, self.lineup_sheet))
 
         except Exception as e:
-            print(f"⚠️ Error during deleteavailability: {e}")
-
-        await interaction.followup.send(f"🗑️ Deleted {deleted} messages and cleaned up Google Sheets for {league.value}.", ephemeral=True)
-
-    @app_commands.command(name="availability", description="Display availability for a specific league and day.")
-    @app_commands.choices(
-        league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")],
-        day=[
-            app_commands.Choice(name=day.upper(), value=day.upper())
-            for day in ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-        ]
-    )
-    async def availability(self, interaction: discord.Interaction, league: app_commands.Choice[str], day: app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=True)
-        rows = self.sheet.get_all_values()[1:]
-        relevant = [r for r in rows if r[5].startswith(day.value) and r[6] == league.value]
-
-        if not relevant:
-            await interaction.followup.send(f"⚠️ No data found for {league.value} - {day.value}.", ephemeral=True)
-            return
-
-        order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-        result = f"**{day.value}**\n"
-        users = {}
-
-        for r in relevant:
-            uid = r[2]
-            time = r[3]
-            users.setdefault(uid, []).append(time)
-
-        for uid, times in users.items():
-            ordered = [t for t in order if t in times]
-            result += f"<@{uid}>: {', '.join(ordered)}\n"
-
-        channel = discord.utils.get(interaction.guild.text_channels, name="availability")
-        if channel:
-            await channel.send(result)
-            await interaction.followup.send("✅ Sent to #availability", ephemeral=True)
-        else:
-            await interaction.followup.send(result, ephemeral=True)
-
-    @app_commands.command(name="checkavailability", description="Check current availability numbers for HC or AL")
-    @app_commands.choices(
-        league=[
-            app_commands.Choice(name="HC", value="HC"),
-            app_commands.Choice(name="AL", value="AL"),
-        ]
-    )
-    async def checkavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
-        await interaction.response.defer()
-
-        data = self.sheet.get_all_values()[1:]
-        counts = defaultdict(lambda: defaultdict(int))
-
-        for row in data:
-            if len(row) < 7:
-                continue
-            _, _, _, emoji, _, message_text, row_league = row
-            if row_league != league.value:
-                continue
-            day = message_text.upper()
-            counts[day][emoji] += 1
-
-        days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
-        times = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-
-        lines = [f"**AOS CURRENT {league.value} AVAILABILITY**"]
-        for day in days:
-            time_line = f"**{day}:** " + " | ".join([f"{time} {counts[day].get(time, 0)}" for time in times])
-            lines.append(time_line)
-
-        await interaction.followup.send("\n".join(lines))
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(AvailabilityScheduler(bot))
+    await bot.add_cog(SetLineup(bot))
