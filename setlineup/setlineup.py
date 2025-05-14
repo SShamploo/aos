@@ -30,14 +30,15 @@ class SetLineup(commands.Cog):
         ]
     )
     async def setlineup(self, interaction: discord.Interaction, match_id: int, lineup_type: app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(thinking=True)  # Not ephemeral, makes it public
+
         try:
             data = self.sheet.get_all_values()
             rows = data[1:]
             match_row = next((row for row in rows if row[-1] == str(match_id)), None)
 
             if not match_row:
-                await interaction.followup.send("❌ Match ID not found.", ephemeral=True)
+                await interaction.followup.send("❌ Match ID not found.")
                 return
 
             match_line = (
@@ -61,20 +62,21 @@ class SetLineup(commands.Cog):
             shadow_str = str(shadow) if shadow else ":ShadowJam:"
             weed_str = str(weed) if weed else ":Weed_Gold:"
 
+            d9_line = d9_str * 10  # 10 emojis in one line
             shooters = "\n".join([shadow_str for _ in range(shooter_count)])
             subs = "\n".join([weed_str for _ in range(2)])
 
             message = (
                 f"{match_line}\n"
-                f"{d9_str}\n**Shooters:**\n"
+                f"{d9_line}\n**Shooters:**\n"
                 f"{shooters}\n"
-                f"{d9_str}\n**Subs:**\n"
-                f"{subs}\n{d9_str}"
+                f"{d9_line}\n**Subs:**\n"
+                f"{subs}\n{d9_line}"
             )
 
             await interaction.followup.send(message)
         except Exception as e:
-            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+            await interaction.followup.send(f"❌ Error: {e}")
 
 async def setup(bot):
     await bot.add_cog(SetLineup(bot))
