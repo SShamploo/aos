@@ -8,12 +8,30 @@ import json
 import base64
 import gspread
 import asyncio
+
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import defaultdict, deque
 
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
+
+    def cache_reaction(self, entry):
+        cache_path = Path("reaction_cache.json")
+        try:
+            if cache_path.exists():
+                with cache_path.open("r") as f:
+                    data = json.load(f)
+            else:
+                data = []
+
+            data.append(entry)
+            with cache_path.open("w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            print(f"❌ Failed to cache reaction: {e}")
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
@@ -33,7 +51,6 @@ class AvailabilityScheduler(commands.Cog):
     async def on_raw_reaction_remove(self, payload):
         await self.handle_reaction(payload, "remove")
 
-    @tasks.loop(seconds=30)
     async def batch_writer(self):
         async with self.write_lock:
             if not self.reaction_queue:
@@ -112,7 +129,7 @@ class AvailabilityScheduler(commands.Cog):
             message_text = full_text.split()[0].upper()
 
             if event_type == "add":
-                self.reaction_queue.append({
+                self.cache_reaction({
                     "timestamp": timestamp,
                     "user_name": member.name,
                     "user_id": str(member.id),
@@ -259,5 +276,30 @@ class AvailabilityScheduler(commands.Cog):
             lines.append(time_line)
         await interaction.followup.send("\n".join(lines))
 
+
+    @tasks.loop(seconds=30)
+    async def batch_writer(self):
+        from pathlib import Path
+        cache_path = Path("reaction_cache.json")
+        if not cache_path.exists():
+            return
+
+        try:
+            with cache_path.open("r") as f:
+                data = json.load(f)
+            if not data:
+                return
+
+            rows = [
+                [r["timestamp"], r["user_name"], r["user_id"], r["emoji"], r["message_id"], r["message_text"], r["league"]]
+                for r in data
+            ]
+            self.sheet.append_rows(rows)
+            print(f"✅ Uploaded {len(rows)} reactions from cache")
+
+            with cache_path.open("w") as f:
+                json.dump([], f)
+        except Exception as e:
+            print(f"❌ Failed to flush reactions to sheet: {e}")
 async def setup(bot):
     await bot.add_cog(AvailabilityScheduler(bot))
