@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -8,6 +9,7 @@ import base64
 import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
+from collections import defaultdict
 
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
@@ -125,7 +127,8 @@ class AvailabilityScheduler(commands.Cog):
             return
 
         order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-        result = f"**{day.value}**\n"
+        result = f"**{day.value}**
+"
         users = {}
 
         for r in relevant:
@@ -135,7 +138,8 @@ class AvailabilityScheduler(commands.Cog):
 
         for uid, times in users.items():
             ordered = [t for t in order if t in times]
-            result += f"<@{uid}>: {', '.join(ordered)}\n"
+            result += f"<@{uid}>: {', '.join(ordered)}
+"
 
         channel = discord.utils.get(interaction.guild.text_channels, name="availability")
         if channel:
@@ -143,6 +147,38 @@ class AvailabilityScheduler(commands.Cog):
             await interaction.followup.send("✅ Sent to #availability", ephemeral=True)
         else:
             await interaction.followup.send(result, ephemeral=True)
+
+    @app_commands.command(name="checkavailability", description="Check current availability numbers for HC or AL")
+    @app_commands.choices(
+        league=[
+            app_commands.Choice(name="HC", value="HC"),
+            app_commands.Choice(name="AL", value="AL"),
+        ]
+    )
+    async def checkavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
+        await interaction.response.defer()
+
+        data = self.sheet.get_all_values()[1:]
+        counts = defaultdict(lambda: defaultdict(int))  # {day: {emoji: count}}
+
+        for row in data:
+            if len(row) < 7:
+                continue
+            _, _, _, emoji, _, message_text, row_league = row
+            if row_league != league.value:
+                continue
+            day = message_text.upper()
+            counts[day][emoji] += 1
+
+        days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+        times = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
+
+        lines = [f"**AOS CURRENT {league.value} AVAILABILITY**"]
+        for day in days:
+            time_line = f"**{day}:** " + " | ".join([f"{time} {counts[day].get(time, 0)}" for time in times])
+            lines.append(time_line)
+
+        await interaction.followup.send("\n".join(lines))
 
 async def setup(bot):
     await bot.add_cog(AvailabilityScheduler(bot))
