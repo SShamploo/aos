@@ -18,7 +18,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         self.match_sheet = match_sheet
         self.result_sheet = result_sheet
 
-        self.match_id = discord.ui.TextInput(
+        self.match_id = discord.ui.TextInput(A
             label="SCHEDULED MATCH ID",
             placeholder="The match ID attached to the scheduled match in Dates and Times",
             required=True
@@ -60,7 +60,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        # Check if match ID is already submitted (case insensitive)
+        # Check if match ID is already submitted
         submitted_data = self.result_sheet.get_all_records()
         for row in submitted_data:
             existing_id = str(row.get("Match Id", "")).strip().lower()
@@ -93,7 +93,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
 {section_emoji} **MAPS LOST:** {self.maps_lost.value.strip()}
 {section_emoji} **AOS PLAYERS:** {self.aos_players.value.strip()}
 {section_emoji} **CB RESULTS:** {cb_text}
-<a:wut:1372687602305732618> **SUBMITTED BY:** <@{user.id}>"""
+{submitter_emoji} **SUBMITTED BY:** <@{user.id}>"""
 
         await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
@@ -105,7 +105,8 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             self.maps_won.value.strip(),
             self.maps_lost.value.strip(),
             self.aos_players.value.strip(),
-            cb_outcome
+            cb_outcome,
+            enemy_team  # newly added column
         ])
 
 class MatchResultsButton(discord.ui.View):
@@ -121,7 +122,6 @@ class MatchResultsButton(discord.ui.View):
 class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
         load_dotenv()
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_b64 = os.getenv("GOOGLE_SHEETS_CREDS_B64")
