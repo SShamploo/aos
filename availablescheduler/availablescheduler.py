@@ -15,6 +15,7 @@ from collections import deque, defaultdict
 
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
+        self.batch_writer.start()
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
@@ -77,6 +78,7 @@ class AvailabilityScheduler(commands.Cog):
         await self.handle_reaction(payload, "remove")
 
     async def handle_reaction(self, payload, event_type: str):
+        print(f"📥 Reaction received: {event_type} from {payload.user_id}")
         if payload.user_id == self.bot.user.id:
             return
         guild = self.bot.get_guild(payload.guild_id)
