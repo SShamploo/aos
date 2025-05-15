@@ -81,10 +81,10 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
 
         # Final adjusted format
         combined_message = f"""**# {emoji} {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} {emoji}**
-# **MAPS WON:** {self.maps_won.value.strip()}
-# **MAPS LOST:** {self.maps_lost.value.strip()}
-# **AOS PLAYERS:** {self.aos_players.value.strip()}
-# **CB RESULTS:** {cb_text}"""
+ **MAPS WON:** {self.maps_won.value.strip()}
+ **MAPS LOST:** {self.maps_lost.value.strip()}
+ **AOS PLAYERS:** {self.aos_players.value.strip()}
+ **CB RESULTS:** {cb_text}"""
 
         await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
