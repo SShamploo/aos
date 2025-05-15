@@ -28,7 +28,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
-            await interaction.response.defer()
+            # Defer safely and ensure no interaction timeout
+            await interaction.response.defer(thinking=True)
 
             channel = interaction.guild.get_channel(1360237474454175814)
             if not channel:
@@ -114,7 +115,8 @@ class MatchScheduler(commands.Cog):
     @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
     async def currentmatches(self, interaction: discord.Interaction):
         try:
-            await interaction.response.defer()
+            # Defer safely and ensure no interaction timeout
+            await interaction.response.defer(thinking=True)
             rows = self.sheet.get_all_values()[1:]
 
             def parse_date_time(row):
