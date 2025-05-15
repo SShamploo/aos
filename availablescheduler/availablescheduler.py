@@ -63,9 +63,6 @@ class AvailabilityScheduler(commands.Cog):
             except Exception as e:
                 print(f"❌ Failed to flush reactions to sheet: {e}")
 
-    async def cog_load(self):
-        self.batch_writer.start()
-
     def cog_unload(self):
         self.batch_writer.cancel()
 
