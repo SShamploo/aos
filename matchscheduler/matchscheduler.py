@@ -17,8 +17,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.match_type = match_type
         self.sheet = sheet
 
-        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD/YYYY", required=True)
-        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM CST", required=True)
+        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
+        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM, 8PM", required=True)
         self.enemy_team = discord.ui.TextInput(label="Enemy Team", placeholder="Enter team name", required=True)
 
         self.add_item(self.date)
