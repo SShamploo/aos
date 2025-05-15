@@ -201,7 +201,6 @@ class AvailabilityScheduler(commands.Cog):
             return
         order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         result = f"**{day.value}**"
-"
         users = {}
         for r in relevant:
             uid = r[2]
@@ -248,4 +247,3 @@ class AvailabilityScheduler(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(AvailabilityScheduler(bot))
-
