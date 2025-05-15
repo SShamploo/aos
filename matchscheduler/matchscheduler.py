@@ -107,7 +107,7 @@ class MatchScheduler(commands.Cog):
             app_commands.Choice(name="5v5+", value="5v5+"),
             app_commands.Choice(name="6v6", value="6v6"),
         ]
-            )
+    )
     async def schedulematch(
         self,
         interaction: discord.Interaction,
@@ -149,7 +149,6 @@ class MatchScheduler(commands.Cog):
                 f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
                 f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
-                "# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             await interaction.followup.send(message)
         except Exception as e:
