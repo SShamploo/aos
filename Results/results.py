@@ -60,7 +60,13 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        # Lookup match info from "matches" tab by Match ID
+        # Check if match ID is already submitted
+        submitted_data = self.result_sheet.get_all_records()
+        if any(str(row.get("Match ID", "")).strip() == match_id_val for row in submitted_data):
+            await interaction.response.send_message("HEY DUMBFUCK THIS WAS ALREADY SUBMITTED", ephemeral=True)
+            return
+
+        # Lookup match info from "matches" tab
         match_data = self.match_sheet.get_all_records()
         match_row = next((row for row in match_data if str(row.get("Match ID", "")).strip() == match_id_val), None)
 
@@ -74,23 +80,25 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         league = match_row["League"]
         match_type = match_row["Match Type"]
 
-        # Emoji logic
+        # Emojis
         header_emoji = "<a:BlackCrown:1353482149096853606>"
         section_emoji = "<a:ShadowJam:1357240936849211583>"
+        submitter_emoji = "<a:wut:1372687602305732618>"
         cb_outcome = self.cb_results.value.strip().upper()
         cb_text = "AOS WIN" if cb_outcome == "W" else "AOS LOSS" if cb_outcome == "L" else cb_outcome
 
-        # Final message
+        # Final output
         combined_message = f"""**# {header_emoji} {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} {header_emoji}**
 {section_emoji} **MAPS WON:** {self.maps_won.value.strip()}
 {section_emoji} **MAPS LOST:** {self.maps_lost.value.strip()}
 {section_emoji} **AOS PLAYERS:** {self.aos_players.value.strip()}
-{section_emoji} **CB RESULTS:** {cb_text}"""
+{section_emoji} **CB RESULTS:** {cb_text}
+<a:wut:1372687602305732618> **SUBMITTED BY:** <@{user.id}>"""
 
         await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
 
-        # Log to Google Sheets matchresults tab
+        # Log to Google Sheets
         self.result_sheet.append_row([
             timestamp,
             user.name,
