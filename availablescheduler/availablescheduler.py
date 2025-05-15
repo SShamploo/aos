@@ -146,6 +146,7 @@ class AvailabilityScheduler(commands.Cog):
                         self.response = 'no'
                         await interaction_button.response.defer()
                         self.stop()
+                        await interaction_button.followup.send('Thank you.', ephemeral=True)
 
                 view = ConfirmView()
                 await interaction.followup.send(
