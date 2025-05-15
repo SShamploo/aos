@@ -17,8 +17,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.match_type = match_type
         self.sheet = sheet
 
-        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
-        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM, 8PM", required=True)
+        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD/YYYY", required=True)
+        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM CST", required=True)
         self.enemy_team = discord.ui.TextInput(label="Enemy Team", placeholder="Enter team name", required=True)
 
         self.add_item(self.date)
@@ -117,24 +117,15 @@ class MatchScheduler(commands.Cog):
             hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date)
 
             def format_matches(match_list):
-                return "
-".join([
+                return "\n".join([
                     f"- {row[2]} | {row[3]} | {row[4]} | {row[6]} | ID: {row[7]}"
                     for row in match_list
                 ]) or "No matches found."
 
             message = (
-                "# AOS CURRENT MATCHES
-
-"
-                "**AL LEAGUE MATCHES:**
-"
-                f"{format_matches(al_matches)}
-
-"
-                "**HC LEAGUE MATCHES:**
-"
-                f"{format_matches(hc_matches)}"
+                "# AOS CURRENT MATCHES\n\n"
+                "**AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
+                "**HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             await interaction.followup.send(message)
         except Exception as e:
