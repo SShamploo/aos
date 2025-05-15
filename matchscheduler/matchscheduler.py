@@ -115,7 +115,8 @@ class MatchScheduler(commands.Cog):
     @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
     async def currentmatches(self, interaction: discord.Interaction):
         try:
-            await interaction.response.defer()
+            if not interaction.response.is_done():
+                await interaction.response.defer()
             rows = self.sheet.get_all_values()[1:]
 
             def parse_date_time(row):
