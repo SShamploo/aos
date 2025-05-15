@@ -208,8 +208,7 @@ class AvailabilityScheduler(commands.Cog):
             users.setdefault(uid, []).append(time)
         for uid, times in users.items():
             ordered = [t for t in order if t in times]
-            result += f"<@{uid}>: {', '.join(ordered)}
-"
+            result += f"<@{uid}>: {", ".join(ordered)}"
         channel = discord.utils.get(interaction.guild.text_channels, name="availability")
         if channel:
             await channel.send(result)
