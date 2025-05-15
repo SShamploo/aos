@@ -156,7 +156,7 @@ class AvailabilityScheduler(commands.Cog):
                 await view.wait()
                 if view.response != 'yes':
                     return
-                await self.deleteavailability(interaction, league)
+                await self._delete_availability_data(str(interaction.channel.id), league.value)
                 break
 
         # Check if there is already an active message for this league
@@ -186,7 +186,7 @@ class AvailabilityScheduler(commands.Cog):
                 await view.wait()
                 if view.response != 'yes':
                     return
-                await self.deleteavailability(interaction, league)
+                await self._delete_availability_data(str(interaction.channel.id), league.value)
                 break
 
         emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
@@ -220,7 +220,7 @@ class AvailabilityScheduler(commands.Cog):
     )
     async def deleteavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
         await interaction.response.defer(ephemeral=True)
-        deleted = 0
+        await self._delete_availability_data(str(interaction.channel.id), league.value)
         channel_id = str(interaction.channel.id)
         try:
             rows = self.current_sheet.get_all_values()[1:]
@@ -278,6 +278,36 @@ class AvailabilityScheduler(commands.Cog):
             if line:
                 lines.append(f"**{day}:** " + " | ".join(line))
         await interaction.followup.send("\n".join(lines))
+
+    async def _delete_availability_data(self, channel_id, league_value):
+        deleted = 0
+        try:
+            rows = self.current_sheet.get_all_values()[1:]
+            to_delete = []
+            msg_ids_to_delete = []
+            for i, row in enumerate(rows):
+                if row[0] == league_value and row[1] == channel_id:
+                    to_delete.append(i + 2)
+                    msg_ids_to_delete.append(row[2])
+            channel = self.bot.get_channel(int(channel_id))
+            for msg_id in msg_ids_to_delete:
+                try:
+                    msg = await channel.fetch_message(int(msg_id))
+                    await msg.delete()
+                    deleted += 1
+                except:
+                    continue
+            avail_rows = self.sheet.get_all_values()
+            avail_delete_rows = [
+                i + 2 for i, row in enumerate(avail_rows[1:])
+                if row[4] in msg_ids_to_delete and row[6] == league_value
+            ]
+            for i in reversed(avail_delete_rows):
+                self.sheet.delete_rows(i)
+            for i in reversed(to_delete):
+                self.current_sheet.delete_rows(i)
+        except Exception as e:
+            print(f"⚠️ Error during internal availability deletion: {e}")
 
 async def setup(bot):
     await bot.add_cog(AvailabilityScheduler(bot))
