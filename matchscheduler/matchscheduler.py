@@ -53,8 +53,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             soldier_mention = soldier_role.mention if soldier_role else "@SOLDIER"
             message = (
                 f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**\n\n"
-                f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
-                f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
+                + f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
+                + f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             await channel.send(message)
             await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
@@ -146,8 +146,8 @@ class MatchScheduler(commands.Cog):
             soldier_mention = soldier_role.mention if soldier_role else "@SOLDIER"
             message = (
                 f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**\n\n"
-                f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
-                f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
+                + f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
+                + f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             )
             await interaction.followup.send(message)
