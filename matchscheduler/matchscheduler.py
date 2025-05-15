@@ -17,8 +17,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.match_type = match_type
         self.sheet = sheet
 
-        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD/YYYY", required=True)
-        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM CST", required=True)
+        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
+        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM, 8PM", required=True)
         self.enemy_team = discord.ui.TextInput(label="Enemy Team", placeholder="Enter team name", required=True)
 
         self.add_item(self.date)
@@ -27,10 +27,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
-            # Defer response early to prevent timeout
             await interaction.response.defer(ephemeral=True)
 
-            # Directly fetch the channel by ID
             channel = interaction.guild.get_channel(1360237474454175814)
             if not channel:
                 await interaction.followup.send("❌ Could not find the match schedule channel.", ephemeral=True)
@@ -45,7 +43,7 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             existing_rows = self.sheet.get_all_values()
-            match_id = len(existing_rows)  # Start at 1 assuming first row is headers
+            match_id = len(existing_rows)
 
             message = (
                 f"# {emoji_str} {self.date.value} | {self.time.value} | "
@@ -102,6 +100,45 @@ class MatchScheduler(commands.Cog):
         match_type: app_commands.Choice[str]
     ):
         await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, self.sheet))
+
+    @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
+    async def currentmatches(self, interaction: discord.Interaction):
+        try:
+            await interaction.response.defer()
+            rows = self.sheet.get_all_values()[1:]
+
+            def parse_date(row):
+                try:
+                    return datetime.strptime(row[2], "%m/%d")
+                except:
+                    return datetime.min
+
+            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date)
+            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date)
+
+            def format_matches(match_list):
+                return "
+".join([
+                    f"- {row[2]} | {row[3]} | {row[4]} | {row[6]} | ID: {row[7]}"
+                    for row in match_list
+                ]) or "No matches found."
+
+            message = (
+                "# AOS CURRENT MATCHES
+
+"
+                "**AL LEAGUE MATCHES:**
+"
+                f"{format_matches(al_matches)}
+
+"
+                "**HC LEAGUE MATCHES:**
+"
+                f"{format_matches(hc_matches)}"
+            )
+            await interaction.followup.send(message)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Failed to fetch matches: {e}", ephemeral=True)
 
 # Setup
 async def setup(bot):
