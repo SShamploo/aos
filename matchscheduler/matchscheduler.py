@@ -135,7 +135,6 @@ class MatchScheduler(commands.Cog):
                     for row in match_list
                 ]) or "No matches found."
 
-            
             capo_role = discord.utils.get(interaction.guild.roles, name="Capo")
             soldier_role = discord.utils.get(interaction.guild.roles, name="Soldier")
             capo_mention = capo_role.mention if capo_role else "@CAPO"
@@ -144,9 +143,13 @@ class MatchScheduler(commands.Cog):
                 f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**
 
 "
+                f"# **AL LEAGUE MATCHES:**
+" + format_matches(al_matches) + "
 
-                "# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
-                "# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
+"
+                f"# **HC LEAGUE MATCHES:**
+" + format_matches(hc_matches)
+            )
             )
             await interaction.followup.send(message)
         except Exception as e:
