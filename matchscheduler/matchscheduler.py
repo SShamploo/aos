@@ -11,10 +11,11 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
-    def __init__(self, league, match_type, sheet):
+    def __init__(self, league, match_type, players, sheet):
         super().__init__(timeout=None)
         self.league = league
         self.match_type = match_type
+        self.players = players
         self.sheet = sheet
 
         self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
@@ -47,7 +48,7 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
             message = (
                 f"# {emoji_str} {self.date.value} | {self.time.value} | "
-                f"{self.enemy_team.value} | {self.league} | {self.match_type} | ID: {match_id} {role_mention}"
+                f"{self.enemy_team.value} | {self.league} | {self.match_type} | {self.players} | ID: {match_id} {role_mention}"
             )
             await channel.send(message)
             await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
@@ -60,6 +61,7 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
                 self.enemy_team.value,
                 self.league,
                 self.match_type,
+                self.players,
                 match_id
             ])
         except Exception as e:
@@ -91,15 +93,23 @@ class MatchScheduler(commands.Cog):
             app_commands.Choice(name="CHALL", value="CHALL"),
             app_commands.Choice(name="SCRIM", value="SCRIM"),
             app_commands.Choice(name="COMP", value="COMP"),
+        ],
+        players=[
+            app_commands.Choice(name="4v4", value="4v4"),
+            app_commands.Choice(name="4v4+", value="4v4+"),
+            app_commands.Choice(name="5v5", value="5v5"),
+            app_commands.Choice(name="5v5+", value="5v5+"),
+            app_commands.Choice(name="6v6", value="6v6"),
         ]
     )
     async def schedulematch(
         self,
         interaction: discord.Interaction,
         league: app_commands.Choice[str],
-        match_type: app_commands.Choice[str]
+        match_type: app_commands.Choice[str],
+        players: app_commands.Choice[str]
     ):
-        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, self.sheet))
+        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, players.value, self.sheet))
 
     @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
     async def currentmatches(self, interaction: discord.Interaction):
@@ -118,7 +128,7 @@ class MatchScheduler(commands.Cog):
 
             def format_matches(match_list):
                 return "\n".join([
-                    f"- {row[2]} | {row[3]} | {row[4]} | {row[6]} | ID: {row[7]}"
+                    f"- {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}"
                     for row in match_list
                 ]) or "No matches found."
 
