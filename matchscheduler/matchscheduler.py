@@ -117,14 +117,15 @@ class MatchScheduler(commands.Cog):
             await interaction.response.defer()
             rows = self.sheet.get_all_values()[1:]
 
-            def parse_date(row):
+            def parse_date_time(row):
                 try:
-                    return datetime.strptime(row[2], "%m/%d")
+                    dt_str = row[2] + " " + row[3].upper().replace('AM', ' AM').replace('PM', ' PM')
+                    return datetime.strptime(dt_str, "%m/%d %I%p")
                 except:
                     return datetime.min
 
-            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date)
-            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date)
+            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date_time)
+            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date_time)
 
             def format_matches(match_list):
                 return "\n".join([
@@ -133,7 +134,7 @@ class MatchScheduler(commands.Cog):
                 ]) or "No matches found."
 
             message = (
-                "# AOS CURRENT MATCHES\n\n"
+                "# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES <:AOSgold:1350641872531624049>**\n\n"
                 "**AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
                 "**HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
