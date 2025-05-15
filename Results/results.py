@@ -58,7 +58,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        # Format message
+        # Properly formatted multi-line message
         result_message = (
             f"# MATCH RESULTS: {self.match_id.value.strip()}
 
