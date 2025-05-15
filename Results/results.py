@@ -79,12 +79,12 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         cb_outcome = self.cb_results.value.strip().upper()
         cb_text = "AOS WIN" if cb_outcome == "W" else "AOS LOSS" if cb_outcome == "L" else cb_outcome
 
-        # Final single-line format per header
+        # Final adjusted format
         combined_message = f"""**# {emoji} {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} {emoji}**
-**# MAPS WON:** {self.maps_won.value.strip()}
-**# MAPS LOST:** {self.maps_lost.value.strip()}
-**# AOS PLAYERS:** {self.aos_players.value.strip()}
-**# CB RESULTS:** {cb_text}"""
+# **MAPS WON:** {self.maps_won.value.strip()}
+# **MAPS LOST:** {self.maps_lost.value.strip()}
+# **AOS PLAYERS:** {self.aos_players.value.strip()}
+# **CB RESULTS:** {cb_text}"""
 
         await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
