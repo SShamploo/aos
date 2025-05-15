@@ -74,8 +74,8 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         league = match_row["League"]
         match_type = match_row["Match Type"]
 
-        # Format single message block
-        combined_message = f"""**# <:63804crownblack:1138555030371229767> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} <:63804crownblack:1138555030371229767>**
+        # Format the final message with the proper emoji name
+        combined_message = f"""**# <:BlackCrown:1353482149096853606> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} <:BlackCrown:1353482149096853606>**
 
 Maps Won,
 {self.maps_won.value.strip()}
