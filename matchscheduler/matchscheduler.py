@@ -47,9 +47,14 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             existing_rows = self.sheet.get_all_values()
             match_id = len(existing_rows)
 
+            capo_role = discord.utils.get(interaction.guild.roles, name="Capo")
+            soldier_role = discord.utils.get(interaction.guild.roles, name="Soldier")
+            capo_mention = capo_role.mention if capo_role else "@CAPO"
+            soldier_mention = soldier_role.mention if soldier_role else "@SOLDIER"
             message = (
-                f"# {emoji_str} {self.date.value} | {self.time.value} | "
-                f"{self.enemy_team.value} | {self.league} | {self.match_type} | {self.players} | ID: {match_id} {role_mention}"
+                f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**\n\n"
+                f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
+                f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             await channel.send(message)
             await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
@@ -140,16 +145,11 @@ class MatchScheduler(commands.Cog):
             capo_mention = capo_role.mention if capo_role else "@CAPO"
             soldier_mention = soldier_role.mention if soldier_role else "@SOLDIER"
             message = (
-                f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**
-
-"
-                f"# **AL LEAGUE MATCHES:**
-" + format_matches(al_matches) + "
-
-"
-                f"# **HC LEAGUE MATCHES:**
-" + format_matches(hc_matches)
+                f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**\n\n"
+                f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
+                f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
+                "# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             await interaction.followup.send(message)
         except Exception as e:
