@@ -74,8 +74,9 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         league = match_row["League"]
         match_type = match_row["Match Type"]
 
-        # Compose post message
-        header = f"<:AOSgold:EMOJI_ID> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val}"
+        # Format the header with emoji and Markdown bold header
+        header = f"**# <:AOSgold:1372675171646701730> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val}**"
+
         detail = f"""Maps Won,
 {self.maps_won.value.strip()}
 
