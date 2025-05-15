@@ -115,8 +115,6 @@ class MatchScheduler(commands.Cog):
     @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
     async def currentmatches(self, interaction: discord.Interaction):
         try:
-            if not interaction.response.is_done():
-                await interaction.response.defer()
             rows = self.sheet.get_all_values()[1:]
 
             def parse_date_time(row):
@@ -145,36 +143,7 @@ class MatchScheduler(commands.Cog):
                 f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
                 f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
-            await interaction.followup.send(message)
-        except Exception as e:
-            await interaction.followup.send(f"❌ Failed to fetch matches: {e}", ephemeral=True)
-        try:
-            # Defer safely and ensure no interaction timeout
-            await interaction.response.defer(thinking=True)
-            rows = self.sheet.get_all_values()[1:]
-
-            def parse_date_time(row):
-                try:
-                    dt_str = f"{row[2]} {row[3].strip().upper()}"
-                    return datetime.strptime(dt_str, "%m/%d %I%p")
-                except:
-                    return datetime.min
-
-            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date_time, reverse=False)
-            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date_time, reverse=False)
-
-            def format_matches(match_list):
-                return "\n".join([
-                    f"**<a:flighttounge:1372704594072965201> {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}**"
-                    for row in match_list
-                ]) or "No matches found."
-
-            message = (
-                "# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES @CAPO @SOLDIER <:AOSgold:1350641872531624049>**\n\n"
-                "# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
-                "# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
-            )
-            await interaction.followup.send(message)
+            await interaction.response.send_message(message)
         except Exception as e:
             await interaction.followup.send(f"❌ Failed to fetch matches: {e}", ephemeral=True)
 
