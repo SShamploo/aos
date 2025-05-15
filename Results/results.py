@@ -74,10 +74,10 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         league = match_row["League"]
         match_type = match_row["Match Type"]
 
-        # Format the header with emoji and Markdown bold header
-        header = f"**# <:AOSgold:1372675171646701730> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val}**"
+        # Format single message block
+        combined_message = f"""**# <:63804crownblack:1138555030371229767> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} <:63804crownblack:1138555030371229767>**
 
-        detail = f"""Maps Won,
+Maps Won,
 {self.maps_won.value.strip()}
 
 Maps Lost,
@@ -89,8 +89,7 @@ AOS Players,
 CB Results,
 {self.cb_results.value.strip()}"""
 
-        await results_channel.send(header)
-        await results_channel.send(detail)
+        await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
 
         # Log to Google Sheets matchresults tab
