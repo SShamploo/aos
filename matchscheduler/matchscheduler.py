@@ -124,8 +124,8 @@ class MatchScheduler(commands.Cog):
                 except:
                     return datetime.min
 
-            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date_time)
-            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date_time)
+            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date_time, reverse=False)
+            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date_time, reverse=False)
 
             def format_matches(match_list):
                 return "\n".join([
