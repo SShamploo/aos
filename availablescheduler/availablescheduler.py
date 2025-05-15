@@ -187,34 +187,6 @@ class AvailabilityScheduler(commands.Cog):
             print(f"⚠️ Error during deleteavailability: {e}")
         await interaction.followup.send(f"🗑️ Deleted {deleted} messages and cleaned up Google Sheets for {league.value}.", ephemeral=True)
 
-    @app_commands.command(name="availability", description="Display availability for a specific league and day.")
-    @app_commands.choices(
-        league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")],
-        day=[app_commands.Choice(name=day.upper(), value=day.upper()) for day in ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]]
-    )
-    async def availability(self, interaction: discord.Interaction, league: app_commands.Choice[str], day: app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=True)
-        rows = self.sheet.get_all_values()[1:]
-        relevant = [r for r in rows if r[5].startswith(day.value) and r[6] == league.value]
-        if not relevant:
-            await interaction.followup.send(f"⚠️ No data found for {league.value} - {day.value}.", ephemeral=True)
-            return
-        order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-        result = f"**{day.value}**"
-        users = {}
-        for r in relevant:
-            uid = r[2]
-            time = r[3]
-            users.setdefault(uid, []).append(time)
-        for uid, times in users.items():
-            ordered = [t for t in order if t in times]
-            result += f"<@{uid}>: {', '.join(ordered)}"
-        channel = discord.utils.get(interaction.guild.text_channels, name="availability")
-        if channel:
-            await channel.send(result)
-            await interaction.followup.send("✅ Sent to #availability", ephemeral=True)
-        else:
-            await interaction.followup.send(result, ephemeral=True)
 
     @app_commands.command(name="checkavailability", description="Check current availability numbers for HC or AL")
     @app_commands.choices(
@@ -239,7 +211,7 @@ class AvailabilityScheduler(commands.Cog):
         times = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         lines = [f"**AOS CURRENT {league.value} AVAILABILITY**"]
         for day in days:
-            line = [f"{time} {counts[day][time]}" for time in times if counts[day][time] > 3]
+            line = [f"{time} {counts[day][time]}" for time in times if counts[day][time] > 0]
             if line:
                 lines.append(f"**{day}:** " + " | ".join(line))
         await interaction.followup.send("\n".join(lines))
