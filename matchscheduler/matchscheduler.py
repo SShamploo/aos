@@ -107,7 +107,7 @@ class MatchScheduler(commands.Cog):
             app_commands.Choice(name="5v5+", value="5v5+"),
             app_commands.Choice(name="6v6", value="6v6"),
         ]
-    )
+            )
     async def schedulematch(
         self,
         interaction: discord.Interaction,
