@@ -29,6 +29,8 @@ class AvailabilityScheduler(commands.Cog):
     def cache_reaction(self, entry):
         cache_path = Path("reaction_cache.json")
         try:
+            pass  # Added block to fix empty try
+
         except Exception as e:
             print(f"❌ Failed to cache reaction: {e}")
     @tasks.loop(seconds=30)
@@ -38,6 +40,8 @@ class AvailabilityScheduler(commands.Cog):
             if not cache_path.exists():
                 return
             try:
+            pass  # Added block to fix empty try
+
             except Exception as e:
                 print(f"❌ Failed to flush reactions to sheet: {e}")
     async def cog_load(self):
@@ -66,6 +70,8 @@ class AvailabilityScheduler(commands.Cog):
         emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
+            pass  # Added block to fix empty try
+
         except Exception as e:
             print(f"❌ Reaction tracking failed: {e}")
         catch Exception as e:
@@ -96,6 +102,8 @@ class AvailabilityScheduler(commands.Cog):
                 await msg.add_reaction(emoji)
             rows_to_append.append([league.value, str(interaction.channel.id), str(msg.id), label])
         try:
+            pass  # Added block to fix empty try
+
         except Exception as e:
             print(f"⚠️ Failed to write to currentavailability sheet: {e}")
         catch Exception as e:
@@ -110,6 +118,8 @@ class AvailabilityScheduler(commands.Cog):
         deleted = 0
         channel_id = str(interaction.channel.id)
         try:
+            pass  # Added block to fix empty try
+
                 except:
                     continue
                 catch Exception as e:
