@@ -15,7 +15,6 @@ from collections import deque, defaultdict
 
 class AvailabilityScheduler(commands.Cog):
     def __init__(self, bot):
-        self.batch_writer.start()
         self.bot = bot
         self.reaction_queue = deque()
         self.write_lock = asyncio.Lock()
@@ -63,6 +62,9 @@ class AvailabilityScheduler(commands.Cog):
             except Exception as e:
                 print(f"❌ Failed to flush reactions to sheet: {e}")
 
+    async def cog_load(self):
+        self.batch_writer.start()
+
     def cog_unload(self):
         self.batch_writer.cancel()
 
@@ -75,7 +77,6 @@ class AvailabilityScheduler(commands.Cog):
         await self.handle_reaction(payload, "remove")
 
     async def handle_reaction(self, payload, event_type: str):
-        print(f"📥 Reaction received: {event_type} from {payload.user_id}")
         if payload.user_id == self.bot.user.id:
             return
         guild = self.bot.get_guild(payload.guild_id)
@@ -99,10 +100,17 @@ class AvailabilityScheduler(commands.Cog):
             message_text = full_text.split()[0].upper()
 
             if event_type == "add":
-                for entry in self.reaction_queue:
+            self.cache_reaction({
+                "timestamp": timestamp,
+                "user_name": member.name,
+                "user_id": str(member.id),
+                "emoji": emoji,
+                "message_id": message_id,
+                "message_text": message_text,
+                "league": league
+            })
                     if entry["user_id"] == str(member.id) and entry["emoji"] == emoji and entry["message_id"] == message_id:
                         return
-                self.reaction_queue.append({
                     "timestamp": timestamp,
                     "user_name": member.name,
                     "user_id": str(member.id),
