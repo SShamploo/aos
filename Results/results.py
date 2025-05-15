@@ -58,26 +58,20 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        # Properly formatted multi-line message
-        result_message = (
-            f"# MATCH RESULTS: {self.match_id.value.strip()}
+        # Triple-quoted message block to eliminate unterminated string issue
+        result_message = f"""# MATCH RESULTS: {self.match_id.value.strip()}
 
-"
-            f"# Maps Won
+# Maps Won
 {self.maps_won.value.strip()}
 
-"
-            f"# Maps Lost
+# Maps Lost
 {self.maps_lost.value.strip()}
 
-"
-            f"# AOS Players
+# AOS Players
 {self.aos_players.value.strip()}
 
-"
-            f"# CB Results
-{self.cb_results.value.strip()}"
-        )
+# CB Results
+{self.cb_results.value.strip()}"""
 
         await results_channel.send(result_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
