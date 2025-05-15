@@ -239,7 +239,7 @@ class AvailabilityScheduler(commands.Cog):
         times = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         lines = [f"**AOS CURRENT {league.value} AVAILABILITY**"]
         for day in days:
-            line = [f"{time} {counts[day][time]}" for time in times if counts[day][time] > 0]
+            line = [f"{time} {counts[day][time]}" for time in times if counts[day][time] > 3]
             if line:
                 lines.append(f"**{day}:** " + " | ".join(line))
         await interaction.followup.send("\n".join(lines))
