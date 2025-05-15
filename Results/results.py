@@ -13,9 +13,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
-    def __init__(self, sheet):
+    def __init__(self, match_sheet, result_sheet):
         super().__init__()
-        self.sheet = sheet
+        self.match_sheet = match_sheet
+        self.result_sheet = result_sheet
 
         self.match_id = discord.ui.TextInput(
             label="SCHEDULED MATCH ID",
@@ -52,35 +53,50 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
     async def on_submit(self, interaction: discord.Interaction):
         user = interaction.user
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        match_id_val = self.match_id.value.strip()
 
         results_channel = interaction.client.get_channel(1361457240929996980)
         if not results_channel:
             await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        # Triple-quoted message block to eliminate unterminated string issue
-        result_message = f"""# MATCH RESULTS: {self.match_id.value.strip()}
+        # Lookup match info from "matches" tab by Match ID
+        match_data = self.match_sheet.get_all_records()
+        match_row = next((row for row in match_data if str(row.get("Match ID", "")).strip() == match_id_val), None)
 
-# Maps Won
+        if not match_row:
+            await interaction.response.send_message(f"❌ Match ID {match_id_val} not found in schedule.", ephemeral=True)
+            return
+
+        date = match_row["Date"]
+        time = match_row["Time"]
+        enemy_team = match_row["Enemy Team"]
+        league = match_row["League"]
+        match_type = match_row["Match Type"]
+
+        # Compose post message
+        header = f"<:AOSgold:EMOJI_ID> {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val}"
+        detail = f"""Maps Won,
 {self.maps_won.value.strip()}
 
-# Maps Lost
+Maps Lost,
 {self.maps_lost.value.strip()}
 
-# AOS Players
+AOS Players,
 {self.aos_players.value.strip()}
 
-# CB Results
+CB Results,
 {self.cb_results.value.strip()}"""
 
-        await results_channel.send(result_message)
+        await results_channel.send(header)
+        await results_channel.send(detail)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
 
-        # Log to Google Sheets
-        self.sheet.append_row([
+        # Log to Google Sheets matchresults tab
+        self.result_sheet.append_row([
             timestamp,
             user.name,
-            self.match_id.value.strip(),
+            match_id_val,
             self.maps_won.value.strip(),
             self.maps_lost.value.strip(),
             self.aos_players.value.strip(),
@@ -88,13 +104,14 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         ])
 
 class MatchResultsButton(discord.ui.View):
-    def __init__(self, sheet):
+    def __init__(self, match_sheet, result_sheet):
         super().__init__(timeout=None)
-        self.sheet = sheet
+        self.match_sheet = match_sheet
+        self.result_sheet = result_sheet
 
     @discord.ui.button(label="AOS MATCH RESULTS", style=discord.ButtonStyle.danger, custom_id="match_results_button")
     async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(MatchResultsModal(self.sheet))
+        await interaction.response.send_modal(MatchResultsModal(self.match_sheet, self.result_sheet))
 
 class MatchResults(commands.Cog):
     def __init__(self, bot):
@@ -106,7 +123,8 @@ class MatchResults(commands.Cog):
         creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
-        self.sheet = self.client.open("AOS").worksheet("matchresults")
+        self.match_sheet = self.client.open("AOS").worksheet("matches")
+        self.result_sheet = self.client.open("AOS").worksheet("matchresults")
 
     @app_commands.command(name="matchresultsprompt", description="Send AOS match results prompt")
     async def matchresultsprompt(self, interaction: discord.Interaction):
@@ -124,7 +142,7 @@ class MatchResults(commands.Cog):
         image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
         file = discord.File(fp=image_path, filename="matchresults.png")
         await channel.send(file=file)
-        await channel.send(view=MatchResultsButton(self.sheet))
+        await channel.send(view=MatchResultsButton(self.match_sheet, self.result_sheet))
 
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
@@ -132,4 +150,4 @@ class MatchResults(commands.Cog):
 async def setup(bot):
     cog = MatchResults(bot)
     await bot.add_cog(cog)
-    bot.add_view(MatchResultsButton(cog.sheet))
+    bot.add_view(MatchResultsButton(cog.match_sheet, cog.result_sheet))
