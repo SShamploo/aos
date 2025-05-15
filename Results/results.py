@@ -74,21 +74,25 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         league = match_row["League"]
         match_type = match_row["Match Type"]
 
-        # Animated emoji format
+        # Emoji and CB Results translation
         emoji = "<a:BlackCrown:1353482149096853606>"
+        cb_outcome = self.cb_results.value.strip().upper()
+        cb_text = "AOS WIN" if cb_outcome == "W" else "AOS LOSS" if cb_outcome == "L" else cb_outcome
+
+        # Final message format
         combined_message = f"""**# {emoji} {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} {emoji}**
 
-Maps Won,
+**# MAPS WON:**  
 {self.maps_won.value.strip()}
 
-Maps Lost,
+**# MAPS LOST:**  
 {self.maps_lost.value.strip()}
 
-AOS Players,
+**# AOS PLAYERS:**  
 {self.aos_players.value.strip()}
 
-CB Results,
-{self.cb_results.value.strip()}"""
+**# CB RESULTS:**  
+{cb_text}"""
 
         await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
@@ -101,7 +105,7 @@ CB Results,
             self.maps_won.value.strip(),
             self.maps_lost.value.strip(),
             self.aos_players.value.strip(),
-            self.cb_results.value.strip()
+            cb_outcome
         ])
 
 class MatchResultsButton(discord.ui.View):
