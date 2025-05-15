@@ -100,14 +100,14 @@ class AvailabilityScheduler(commands.Cog):
             message_text = full_text.split()[0].upper()
 
             if event_type == "add":
-            self.cache_reaction({
-                "timestamp": timestamp,
-                "user_name": member.name,
-                "user_id": str(member.id),
-                "emoji": emoji,
-                "message_id": message_id,
-                "message_text": message_text,
-                "league": league
+                self.cache_reaction({
+                    "timestamp": timestamp,
+                    "user_name": member.name,
+                    "user_id": str(member.id),
+                    "emoji": emoji,
+                    "message_id": message_id,
+                    "message_text": message_text,
+                    "league": league
             })
                     if entry["user_id"] == str(member.id) and entry["emoji"] == emoji and entry["message_id"] == message_id:
                         continue
