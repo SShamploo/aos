@@ -66,6 +66,8 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
                 match_id
             ])
         except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Failed to fetch matches: {e}", ephemeral=True)
             try:
                 await interaction.followup.send(f"❌ An error occurred: {e}", ephemeral=True)
             except:
@@ -145,7 +147,8 @@ class MatchScheduler(commands.Cog):
             )
             await interaction.response.send_message(message)
         except Exception as e:
-            await interaction.followup.send(f"❌ Failed to fetch matches: {e}", ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Failed to fetch matches: {e}", ephemeral=True)
 
 # Setup
 async def setup(bot):
