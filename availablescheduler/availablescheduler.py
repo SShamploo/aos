@@ -29,15 +29,6 @@ class AvailabilityScheduler(commands.Cog):
     def cache_reaction(self, entry):
         cache_path = Path("reaction_cache.json")
         try:
-            if cache_path.exists():
-                with cache_path.open("r") as f:
-                    data = json.load(f)
-            else:
-                data = []
-            data.append(entry)
-            with cache_path.open("w") as f:
-                json.dump(data, f)
-        print(f"📝 Cached reaction: {entry}")
         except Exception as e:
             print(f"❌ Failed to cache reaction: {e}")
     @tasks.loop(seconds=30)
@@ -47,22 +38,11 @@ class AvailabilityScheduler(commands.Cog):
             if not cache_path.exists():
                 return
             try:
-                with cache_path.open("r") as f:
-                    data = json.load(f)
-                if not data:
-                    return
-                rows = [
-                    [r["timestamp"], r["user_name"], r["user_id"], r["emoji"], r["message_id"], r["message_text"], r["league"]]
-                    for r in data
-                ]
-                self.sheet.append_rows(rows)
-                print(f"📤 Attempting to upload {len(rows)} cached reactions...")
-                print(f"✅ Uploaded {len(rows)} reactions from cache")
-                with cache_path.open("w") as f:
-                    json.dump([], f)
             except Exception as e:
                 print(f"❌ Failed to flush reactions to sheet: {e}")
     async def cog_load(self):
+            catch Exception as e:
+                print(f"⚠️ Try block failed: {e}")
         self.batch_writer.start()
     def cog_unload(self):
         self.batch_writer.cancel()
@@ -86,35 +66,10 @@ class AvailabilityScheduler(commands.Cog):
         emoji = payload.emoji.name if isinstance(payload.emoji, discord.PartialEmoji) else str(payload.emoji)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
-            current_rows = self.current_sheet.get_all_values()[1:]
-            matched_row = next((r for r in current_rows if r[1] == channel_id and r[2] == message_id), None)
-            if not matched_row:
-                return
-            league = matched_row[0]
-            full_text = matched_row[3]
-            message_text = full_text.split()[0].upper()
-            if event_type == "add":
-                for entry in self.reaction_queue:
-                    if entry["user_id"] == str(member.id) and entry["emoji"] == emoji and entry["message_id"] == message_id:
-                        return
-                self.reaction_queue.append({
-                    "timestamp": timestamp,
-                    "user_name": member.name,
-                    "user_id": str(member.id),
-                    "emoji": emoji,
-                    "message_id": message_id,
-                    "message_text": message_text,
-                    "league": league
-                })
-            elif event_type == "remove":
-                rows = self.sheet.get_all_values()
-                for i, row in enumerate(rows[1:], start=2):
-                    if len(row) >= 7 and row[2] == str(payload.user_id) and row[3] == emoji and row[4] == message_id:
-                        self.sheet.delete_rows(i)
-                        print(f"🗑️ Removed: {emoji} by {member.name} on {message_text}")
-                        break
         except Exception as e:
             print(f"❌ Reaction tracking failed: {e}")
+        catch Exception as e:
+            print(f"⚠️ Try block failed: {e}")
     @app_commands.command(name="sendavailability", description="Post availability messages for a league.")
     @app_commands.choices(
         league=[app_commands.Choice(name="HC", value="HC"), app_commands.Choice(name="AL", value="AL")]
@@ -141,9 +96,10 @@ class AvailabilityScheduler(commands.Cog):
                 await msg.add_reaction(emoji)
             rows_to_append.append([league.value, str(interaction.channel.id), str(msg.id), label])
         try:
-            self.current_sheet.append_rows(rows_to_append)
         except Exception as e:
             print(f"⚠️ Failed to write to currentavailability sheet: {e}")
+        catch Exception as e:
+            print(f"⚠️ Try block failed: {e}")
         await interaction.followup.send(f"✅ Posted availability for {league.value}", ephemeral=True)
     @app_commands.command(name="deleteavailability", description="Delete availability messages and clear sheet rows.")
     @app_commands.choices(
@@ -154,20 +110,10 @@ class AvailabilityScheduler(commands.Cog):
         deleted = 0
         channel_id = str(interaction.channel.id)
         try:
-            rows = self.current_sheet.get_all_values()[1:]
-            to_delete = []
-            msg_ids_to_delete = []
-            for i, row in enumerate(rows):
-                if row[0] == league.value and row[1] == channel_id:
-                    to_delete.append(i + 2)
-                    msg_ids_to_delete.append(row[2])
-            for msg_id in msg_ids_to_delete:
-                try:
-                    msg = await interaction.channel.fetch_message(msg_id)
-                    await msg.delete()
-                    deleted += 1
                 except:
                     continue
+                catch Exception as e:
+                    print(f"⚠️ Try block failed: {e}")
             avail_rows = self.sheet.get_all_values()
             avail_delete_rows = [
                 i + 2 for i, row in enumerate(avail_rows[1:])
