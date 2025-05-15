@@ -126,6 +126,68 @@ class AvailabilityScheduler(commands.Cog):
     )
     async def sendavailability(self, interaction: discord.Interaction, league: app_commands.Choice[str]):
         await interaction.response.defer(ephemeral=True)
+        # Check if there is already an active message for this league
+        existing_rows = self.current_sheet.get_all_values()[1:]
+        for row in existing_rows:
+            if row[0] == league.value:
+                class ConfirmView(discord.ui.View):
+                    def __init__(self):
+                        super().__init__(timeout=60)
+                        self.response = None
+
+                    @discord.ui.button(label='Yes', style=discord.ButtonStyle.danger)
+                    async def confirm(self, interaction_button: discord.Interaction, button: discord.ui.Button):
+                        self.response = 'yes'
+                        await interaction_button.response.defer()
+                        self.stop()
+
+                    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary)
+                    async def cancel(self, interaction_button: discord.Interaction, button: discord.ui.Button):
+                        self.response = 'no'
+                        await interaction_button.response.defer()
+                        self.stop()
+
+                view = ConfirmView()
+                await interaction.followup.send(
+                    f'There is already a {league.value} Availability Sent out, Would you like to delete the previous one and send a new one?',
+                    view=view, ephemeral=True
+                )
+                await view.wait()
+                if view.response != 'yes':
+                    return
+                await self.deleteavailability(interaction, league)
+                break
+
+        # Check if there is already an active message for this league
+        existing_rows = self.current_sheet.get_all_values()[1:]
+        for row in existing_rows:
+            if row[0] == league.value:
+                class ConfirmView(discord.ui.View):
+                    def __init__(self):
+                        super().__init__(timeout=60)
+                        self.response = None
+
+                    @discord.ui.button(label='Yes', style=discord.ButtonStyle.danger)
+                    async def confirm(self, interaction_button: discord.Interaction, button: discord.ui.Button):
+                        self.response = 'yes'
+                        self.stop()
+
+                    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary)
+                    async def cancel(self, interaction_button: discord.Interaction, button: discord.ui.Button):
+                        self.response = 'no'
+                        self.stop()
+
+                view = ConfirmView()
+                await interaction.followup.send(
+                    f'There is already a {league.value} Availability Sent out, Would you like to delete the previous one and send a new one?',
+                    view=view, ephemeral=True
+                )
+                await view.wait()
+                if view.response != 'yes':
+                    return
+                await self.deleteavailability(interaction, league)
+                break
+
         emoji_names = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
         emojis = []
         for name in emoji_names:
