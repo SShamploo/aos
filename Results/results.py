@@ -74,8 +74,8 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         league = match_row["League"]
         match_type = match_row["Match Type"]
 
-        # Properly render the emoji using Discord's full format
-        emoji = "<:BlackCrown:1353482149096853606>"
+        # Animated emoji format
+        emoji = "<a:BlackCrown:1353482149096853606>"
         combined_message = f"""**# {emoji} {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {match_id_val} {emoji}**
 
 Maps Won,
