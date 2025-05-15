@@ -136,7 +136,7 @@ class MatchScheduler(commands.Cog):
                 ]) or "No matches found."
 
             message = (
-                "# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES <:AOSgold:1350641872531624049>**\n\n"
+                "# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES @CAPO @SOLDIER <:AOSgold:1350641872531624049>**\n\n"
                 "# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
                 "# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
