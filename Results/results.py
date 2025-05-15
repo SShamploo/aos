@@ -1,3 +1,4 @@
+
 print("📦 Importing Results Cog...")
 
 import discord
@@ -16,63 +17,81 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         super().__init__()
         self.sheet = sheet
 
-        self.match_type = discord.ui.TextInput(label="MATCH TYPE (OBJ/CB/CHALL/SCRIM/COMP)", required=True)
-        self.league = discord.ui.TextInput(label="LEAGUE (HC/AL)", required=True)
-        self.enemy_team = discord.ui.TextInput(label="ENEMY TEAM", required=True)
-        self.map = discord.ui.TextInput(label="MAP", required=True)
-        self.wl = discord.ui.TextInput(label="W/L", placeholder="W or L", required=True)
+        self.match_id = discord.ui.TextInput(
+            label="SCHEDULED MATCH ID",
+            placeholder="The match ID attached to the scheduled match in Dates and Times",
+            required=True
+        )
+        self.maps_won = discord.ui.TextInput(
+            label="Maps Won",
+            placeholder="Dealership 6-2, Hacienda 6-4, Protocol 6-5, etc.",
+            required=True
+        )
+        self.maps_lost = discord.ui.TextInput(
+            label="Maps Lost",
+            placeholder="Dealership 2-6, Hacienda 4-6, Protocol 5-6, etc.",
+            required=True
+        )
+        self.aos_players = discord.ui.TextInput(
+            label="AOS Players",
+            placeholder="Shamp, NxComp, Jay, etc.",
+            required=True
+        )
+        self.cb_results = discord.ui.TextInput(
+            label="CB Results",
+            placeholder="Abbreviated W/L only",
+            required=True
+        )
 
-        self.add_item(self.match_type)
-        self.add_item(self.league)
-        self.add_item(self.enemy_team)
-        self.add_item(self.map)
-        self.add_item(self.wl)
+        self.add_item(self.match_id)
+        self.add_item(self.maps_won)
+        self.add_item(self.maps_lost)
+        self.add_item(self.aos_players)
+        self.add_item(self.cb_results)
 
     async def on_submit(self, interaction: discord.Interaction):
         user = interaction.user
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        result_line = (
-            f"# MATCH RESULTS: {self.match_type.value.upper()} | {self.league.value.upper()} | "
-            f"{self.enemy_team.value.upper()} | {self.map.value.upper()} | {self.wl.value.upper()}"
-        )
-
-        results_channel = discord.utils.get(interaction.guild.text_channels, name="results")
+        results_channel = interaction.client.get_channel(1361457240929996980)
         if not results_channel:
-            await interaction.response.send_message("❌ #results channel not found.", ephemeral=True)
+            await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        await interaction.response.send_message("📸 Please upload your screenshot below:", ephemeral=True)
+        # Format message
+        result_message = (
+            f"# MATCH RESULTS: {self.match_id.value.strip()}
 
-        def check(msg):
-            return msg.author.id == user.id and msg.attachments and msg.channel == interaction.channel
+"
+            f"# Maps Won
+{self.maps_won.value.strip()}
 
-        try:
-            msg = await interaction.client.wait_for("message", check=check, timeout=60)
-            attachment = msg.attachments[0]
-            image_file = await attachment.to_file()
-            image_url = attachment.url
+"
+            f"# Maps Lost
+{self.maps_lost.value.strip()}
 
-            await results_channel.send(result_line)
-            await results_channel.send(file=image_file)
+"
+            f"# AOS Players
+{self.aos_players.value.strip()}
 
-            await msg.delete()
+"
+            f"# CB Results
+{self.cb_results.value.strip()}"
+        )
 
-            # Log to Google Sheets
-            self.sheet.append_row([
-                timestamp,
-                user.name,
-                self.match_type.value,
-                self.league.value,
-                self.enemy_team.value,
-                self.map.value,
-                self.wl.value,
-                image_url
-            ])
+        await results_channel.send(result_message)
+        await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
 
-        except Exception as e:
-            print(f"⚠️ Failed to handle screenshot or log: {e}")
-            await interaction.followup.send("❌ Something went wrong. Try again.", ephemeral=True)
+        # Log to Google Sheets
+        self.sheet.append_row([
+            timestamp,
+            user.name,
+            self.match_id.value.strip(),
+            self.maps_won.value.strip(),
+            self.maps_lost.value.strip(),
+            self.aos_players.value.strip(),
+            self.cb_results.value.strip()
+        ])
 
 class MatchResultsButton(discord.ui.View):
     def __init__(self, sheet):
