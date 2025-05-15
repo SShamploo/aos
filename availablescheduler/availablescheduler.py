@@ -109,7 +109,6 @@ class AvailabilityScheduler(commands.Cog):
                     "message_text": message_text,
                     "league": league
             })
-                    if entry["user_id"] == str(member.id) and entry["emoji"] == emoji and entry["message_id"] == message_id:
                         continue
                         return
                     "timestamp": timestamp,
