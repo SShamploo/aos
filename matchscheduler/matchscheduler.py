@@ -114,12 +114,12 @@ class MatchScheduler(commands.Cog):
     @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
     async def currentmatches(self, interaction: discord.Interaction):
         try:
-            await interaction.response.defer()
+            await interaction.response.defer(ephemeral=True)
             rows = self.sheet.get_all_values()[1:]
 
             def parse_date_time(row):
                 try:
-                    dt_str = row[2] + " " + row[3].upper().replace('AM', ' AM').replace('PM', ' PM')
+                    dt_str = f"{row[2]} {row[3].strip().upper()}"
                     return datetime.strptime(dt_str, "%m/%d %I%p")
                 except:
                     return datetime.min
