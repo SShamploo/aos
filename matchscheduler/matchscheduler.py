@@ -131,7 +131,7 @@ class MatchScheduler(commands.Cog):
 
             def format_matches(match_list):
                 return "\n".join([
-                    f"- {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}"
+                    f"<a:flighttounge:1372704594072965201> {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}"
                     for row in match_list
                 ]) or "No matches found."
 
