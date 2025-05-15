@@ -200,7 +200,7 @@ class AvailabilityScheduler(commands.Cog):
             await interaction.followup.send(f"⚠️ No data found for {league.value} - {day.value}.", ephemeral=True)
             return
         order = ["5PM", "6PM", "7PM", "8PM", "9PM", "10PM", "11PM", "12AM"]
-        result = f"**{day.value}**
+        result = f"**{day.value}**"
 "
         users = {}
         for r in relevant:
