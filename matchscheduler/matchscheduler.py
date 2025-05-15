@@ -131,14 +131,14 @@ class MatchScheduler(commands.Cog):
 
             def format_matches(match_list):
                 return "\n".join([
-                    f"<a:flighttounge:1372704594072965201> {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}"
+                    f"**<a:flighttounge:1372704594072965201> {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}**"
                     for row in match_list
                 ]) or "No matches found."
 
             message = (
                 "# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES <:AOSgold:1350641872531624049>**\n\n"
-                "**AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
-                "**HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
+                "# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
+                "# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
             )
             await interaction.followup.send(message)
         except Exception as e:
