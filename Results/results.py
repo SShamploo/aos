@@ -153,12 +153,13 @@ class MatchResults(commands.Cog):
     async def spy(self, interaction: discord.Interaction, enemy_team: str):
         await interaction.response.defer()
         try:
+        try:
             enemy_team = enemy_team.strip().lower()
-        records = self.result_sheet.get_all_values()[1:]
-
-        matched = [row for row in records if row[7].strip().lower() == enemy_team]
-
-        if not matched:
+            records = self.result_sheet.get_all_values()[1:]
+            
+            matched = [row for row in records if row[7].strip().lower() == enemy_team]
+            
+            if not matched:
             await interaction.followup.send(header + body)
         except Exception as e:
             await interaction.followup.send(f"❌ SPY command failed: {e}")
