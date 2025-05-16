@@ -27,7 +27,7 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer(ephemeral=True)
         try:
             channel = interaction.guild.get_channel(1360237474454175814)
             if not channel:
