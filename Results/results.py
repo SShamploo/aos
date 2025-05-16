@@ -187,7 +187,6 @@ class MatchResults(commands.Cog):
             angry_emoji = "<a:angry:1372752617641349120>"
             header = f"# {spy_emoji} SPY NETWORK ({enemy_team.upper()}) {spy_emoji}\n\n"
 
-"
 
             maps_won_group = defaultdict(list)
             for row in matched:
