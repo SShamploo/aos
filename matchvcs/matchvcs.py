@@ -53,17 +53,24 @@ class MatchVoiceChannels(commands.Cog):
             print(f"❌ Category ID {self.category_id} not found in guild.")
             return
 
-        # Get existing channel names to avoid duplicates (case-insensitive, strip whitespace, ignore header)
-        existing_rows = self.voicechats_sheet.get_all_values()[1:]
-        existing_names = {
-            row[0].strip()
-            for row in existing_rows
-            if row and row[0].strip().lower() != "channel name"
-        }
+        # Get existing match IDs to prevent duplicates
+        existing_rows = self.voicechats_sheet.get_all_values()
+        existing_match_ids = set()
+        for row in existing_rows:
+            if len(row) >= 3 and row[2].strip().lower() != "match id":
+                existing_match_ids.add(row[2].strip())
 
         matches = self.get_today_matches()
         print(f"📅 Matches for today: {matches}")
         for row in matches:
+            if len(row) < 9:
+                continue  # Ensure match ID exists
+
+            match_id = row[8].strip()
+            if match_id in existing_match_ids:
+                print(f"⏩ Duplicate match ID detected: {match_id}, skipping.")
+                continue
+
             enemy_team = row[4]
             league = row[5]
             date = row[2]
@@ -71,13 +78,9 @@ class MatchVoiceChannels(commands.Cog):
             players = row[7] if len(row) > 7 else "Unknown"
             name = f"{enemy_team} {league} {date} {time} {players}".strip()
 
-            if name in existing_names:
-                print(f"⏩ Skipping duplicate channel: {name}")
-                continue
-
             try:
                 vc = await guild.create_voice_channel(name, category=category)
-                self.voicechats_sheet.append_row([name, str(vc.id)])
+                self.voicechats_sheet.append_row([name, str(vc.id), match_id])
                 print(f"✅ Created voice channel: {name}")
             except Exception as e:
                 print(f"❌ Failed to create voice channel '{name}': {e}")
