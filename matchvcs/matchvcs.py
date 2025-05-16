@@ -43,7 +43,7 @@ class MatchVoiceChannels(commands.Cog):
         print(f"🔍 Found guild: {guild.name if guild else 'None'}")
 
         if not guild:
-            print("❌ No guild found in interaction.")
+            print("❌ No guild found.")
             return
 
         category = guild.get_channel(self.category_id)
@@ -86,11 +86,6 @@ class MatchVoiceChannels(commands.Cog):
     async def creatematchvcs(self, interaction: discord.Interaction):
         await self.create_today_voice_channels(interaction.guild)
         await interaction.response.send_message("✅ Match voice channels created for today.", ephemeral=True)
-
-    @app_commands.command(name="testmidnighttask", description="Simulate the midnight voice chat creation task.")
-    async def testmidnighttask(self, interaction: discord.Interaction):
-        await self.create_today_voice_channels(interaction.guild)
-        await interaction.response.send_message("✅ Simulated midnight task run.", ephemeral=True)
 
     @tasks.loop(minutes=1)
     async def midnight_task(self):
