@@ -23,6 +23,7 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             username = interaction.user.name
+            user_mention = interaction.user.mention
             top_frag_value = int(self.top_frag.value.strip())
             execution_value = int(self.execution.value.strip())
 
@@ -50,8 +51,13 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
                 self.giveaway_sheet.append_row(new_row)
 
             target_channel = interaction.client.get_channel(1373018460401176657)
-            await target_channel.send(f"🎁 **GIVEAWAY ENTRY RECEIVED** from <@{interaction.user.id}>\n"
-                                      f"Top Frag: `{top_frag_value}`\nExecution: `{execution_value}`")
+            if target_channel:
+                await target_channel.send(
+                    f"# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>\n"
+                    f"# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`\n"
+                    f"# <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"
+                )
+
             await interaction.response.send_message("✅ Your giveaway entry has been submitted!", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ Submission failed: {e}", ephemeral=True)
@@ -61,7 +67,7 @@ class GiveawayButton(discord.ui.View):
         super().__init__(timeout=None)
         self.giveaway_sheet = giveaway_sheet
 
-    @discord.ui.button(label="🎁 ENTER GIVEAWAY", style=discord.ButtonStyle.success, custom_id="giveaway_button")
+    @discord.ui.button(label="ENTER GIVEAWAY", style=discord.ButtonStyle.danger, custom_id="giveaway_button")
     async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(GiveawayModal(self.giveaway_sheet))
 
@@ -96,4 +102,3 @@ async def setup(bot):
     cog = GiveawayForm(bot)
     await bot.add_cog(cog)
     bot.add_view(GiveawayButton(cog.giveaway_sheet))
-
