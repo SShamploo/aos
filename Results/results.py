@@ -96,6 +96,46 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         await results_channel.send(combined_message)
         await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
 
+
+        # Cleanup matches and lineups after submission
+        try:
+            lineup_sheet = self.match_sheet.spreadsheet.worksheet("lineups")
+            lineup_rows = lineup_sheet.get_all_values()
+            for idx, row in enumerate(lineup_rows[1:], start=2):
+                if (row[1].strip().lower() == match_id_val and
+                    row[2].strip().lower() == enemy_team.lower() and
+                    row[3].strip().lower() == league.lower()):
+                    msg_id = row[13].strip()
+                    chan_id = row[14].strip()
+                    try:
+                        chan = interaction.client.get_channel(int(chan_id))
+                        if chan:
+                            msg = await chan.fetch_message(int(msg_id))
+                            await msg.delete()
+                    except:
+                        pass
+                    lineup_sheet.delete_rows(idx)
+                    break
+
+            match_rows = self.match_sheet.get_all_values()
+            for idx, row in enumerate(match_rows[1:], start=2):
+                if (row[8].strip().lower() == match_id_val and
+                    row[4].strip().lower() == enemy_team.lower() and
+                    row[5].strip().lower() == league.lower()):
+                    msg_id = row[9].strip()
+                    chan_id = row[10].strip()
+                    try:
+                        chan = interaction.client.get_channel(int(chan_id))
+                        if chan:
+                            msg = await chan.fetch_message(int(msg_id))
+                            await msg.delete()
+                    except:
+                        pass
+                    self.match_sheet.delete_rows(idx)
+                    break
+        except Exception as cleanup_error:
+            print(f"Cleanup error: {cleanup_error}")
+
         self.result_sheet.append_row([
             timestamp,
             user.name,
