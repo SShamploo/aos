@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -24,14 +25,19 @@ class MatchVoiceChannels(commands.Cog):
         self.category_id = 1360145897857482792
         self.midnight_task.start()
 
-    def get_today_date_str(self):
-        now = datetime.now()
-        return f"{now.month}/{now.day}"
-
     def get_today_matches(self):
-        today = self.get_today_date_str()
+        today = datetime.now()
+        today_strs = [
+            today.strftime("%-m/%-d"),
+            today.strftime("%-m/%d"),
+            today.strftime("%m/%d"),
+            today.strftime("%-m/%-d/%Y")
+        ]
+        print(f"🗓️ Accepting any of: {today_strs}")
         rows = self.matches_sheet.get_all_values()[1:]
-        return [row for row in rows if row[2].strip() == today]
+        for row in rows:
+            print(f"➡️ Date from sheet: {row[2].strip()}")
+        return [row for row in rows if row[2].strip() in today_strs]
 
     async def create_today_voice_channels(self):
         guild = discord.utils.get(self.bot.guilds)
@@ -54,11 +60,13 @@ class MatchVoiceChannels(commands.Cog):
         self.voicechats_sheet.append_row(["Channel Name", "Channel ID"])
 
         matches = self.get_today_matches()
+        print(f"📅 Matches for today: {matches}")
         for row in matches:
             name = f"{row[4]} {row[5]} {row[2]} {row[3]}"
             try:
                 vc = await guild.create_voice_channel(name, category=category)
                 self.voicechats_sheet.append_row([name, str(vc.id)])
+                print(f"✅ Created voice channel: {name}")
             except Exception as e:
                 print(f"❌ Failed to create voice channel '{name}': {e}")
 
