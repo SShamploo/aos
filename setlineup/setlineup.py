@@ -113,4 +113,4 @@ class MatchScheduler(commands.Cog):
 
 # Setup
 async def setup(bot):
-    await bot.add_cog(MatchScheduler(bot))
+    await bot.add_cog(SetLineup(bot))
