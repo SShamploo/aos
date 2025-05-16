@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -26,9 +25,8 @@ class MatchVoiceChannels(commands.Cog):
         self.midnight_task.start()
 
     def get_today_date_str(self):
-        utc_now = datetime.utcnow()
-        pst_now = utc_now.replace(hour=(utc_now.hour - 7) % 24)
-        return pst_now.strftime("%-m/%-d")
+        now = datetime.now()
+        return f"{now.month}/{now.day}"
 
     def get_today_matches(self):
         today = self.get_today_date_str()
@@ -36,18 +34,13 @@ class MatchVoiceChannels(commands.Cog):
         return [row for row in rows if row[2].strip() == today]
 
     async def create_today_voice_channels(self):
-        await self.bot.wait_until_ready()
         guild = discord.utils.get(self.bot.guilds)
-        if not guild:
-            print("❌ Bot is not in any guilds.")
-            return
-
         category = guild.get_channel(self.category_id)
         if not category:
             print("❌ Category not found.")
             return
 
-        # Delete old channels
+        # Delete old voice channels
         voice_rows = self.voicechats_sheet.get_all_values()[1:]
         for row in voice_rows:
             try:
@@ -55,18 +48,19 @@ class MatchVoiceChannels(commands.Cog):
                 if vc:
                     await vc.delete()
             except Exception as e:
-                print(f"⚠️ Could not delete voice channel {row[1]}: {e}")
+                print(f"⚠️ Could not delete voice channel: {e}")
+
         self.voicechats_sheet.clear()
         self.voicechats_sheet.append_row(["Channel Name", "Channel ID"])
 
         matches = self.get_today_matches()
         for row in matches:
+            name = f"{row[4]} {row[5]} {row[2]} {row[3]}"
             try:
-                name = f"{row[4]} {row[5]} {row[2]} {row[3]}"
                 vc = await guild.create_voice_channel(name, category=category)
                 self.voicechats_sheet.append_row([name, str(vc.id)])
             except Exception as e:
-                print(f"❌ Failed to create VC for {row}: {e}")
+                print(f"❌ Failed to create voice channel '{name}': {e}")
 
     @app_commands.command(name="creatematchvcs", description="Manually create today's match voice chats.")
     async def creatematchvcs(self, interaction: discord.Interaction):
@@ -75,8 +69,8 @@ class MatchVoiceChannels(commands.Cog):
 
     @tasks.loop(minutes=1)
     async def midnight_task(self):
-        now_utc = datetime.utcnow()
-        if now_utc.hour == 7 and now_utc.minute == 0:
+        now = datetime.utcnow()
+        if now.hour == 7 and now.minute == 0:  # 12AM PST
             await self.create_today_voice_channels()
 
 async def setup(bot):
