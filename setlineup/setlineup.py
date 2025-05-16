@@ -112,5 +112,7 @@ class MatchScheduler(commands.Cog):
         await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, players.value, self.sheet))
 
 # Setup
+
+
 async def setup(bot):
     await bot.add_cog(SetLineup(bot))
