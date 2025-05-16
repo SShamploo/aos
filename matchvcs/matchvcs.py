@@ -50,11 +50,10 @@ class MatchVoiceChannels(commands.Cog):
 
     def clean_voicechats_log(self):
         rows = self.voicechats_sheet.get_all_values()
-        header = rows[0] if rows else ["Channel Name", "Channel ID", "Match ID"]
         seen_ids = set()
-        to_keep = [header]
+        to_keep = []
 
-        for row in rows[1:]:
+        for row in rows:
             if len(row) < 3 or not row[2].strip():
                 continue  # Skip incomplete rows
 
@@ -68,7 +67,7 @@ class MatchVoiceChannels(commands.Cog):
         for row in to_keep:
             self.voicechats_sheet.append_row(row, value_input_option="RAW")
 
-        return {row[2]: row[0] for row in to_keep[1:]}
+        return {row[2]: row[0] for row in to_keep}
 
     async def create_voice_channels(self, guild, match_data):
         category = guild.get_channel(self.category_id)
@@ -104,7 +103,7 @@ class MatchVoiceChannels(commands.Cog):
         guild = interaction.guild
         deleted_channels = []
 
-        voice_rows = self.voicechats_sheet.get_all_values()[1:]
+        voice_rows = self.voicechats_sheet.get_all_values()
         for row in voice_rows:
             try:
                 vc = guild.get_channel(int(row[1]))
@@ -115,7 +114,6 @@ class MatchVoiceChannels(commands.Cog):
                 print(f"⚠️ Could not delete voice channel {row[1]}: {e}")
 
         self.voicechats_sheet.clear()
-        self.voicechats_sheet.append_row(["Channel Name", "Channel ID", "Match ID"], value_input_option="RAW")
         await interaction.response.send_message(f"🧹 Cleared {len(deleted_channels)} match voice channels.", ephemeral=True)
 
     @tasks.loop(minutes=1)
