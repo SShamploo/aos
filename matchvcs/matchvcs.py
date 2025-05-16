@@ -69,7 +69,12 @@ class MatchVoiceChannels(commands.Cog):
         matches = self.get_today_matches()
         print(f"📅 Matches for today: {matches}")
         for row in matches:
-            name = f"{row[4]} {row[5]} {row[2]} {row[3]}"
+            enemy_team = row[4]
+            league = row[5]
+            date = row[2]
+            time = row[3]
+            players = row[7] if len(row) > 7 else "Unknown"
+            name = f"{enemy_team} {league} {date} {time} {players}"
             try:
                 vc = await guild.create_voice_channel(name, category=category)
                 self.voicechats_sheet.append_row([name, str(vc.id)])
@@ -86,8 +91,7 @@ class MatchVoiceChannels(commands.Cog):
     async def midnight_task(self):
         now = datetime.utcnow()
         if now.hour == 7 and now.minute == 0:  # 12AM PST
-            # Note: midnight_task cannot use interaction.guild, fallback logic may be needed here.
-            pass  # Optional: Schedule version needs alternate guild fetch method
+            pass  # Optional: Add fallback logic to access guild for auto execution
 
 async def setup(bot):
     await bot.add_cog(MatchVoiceChannels(bot))
