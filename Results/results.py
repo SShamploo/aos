@@ -131,7 +131,7 @@ class MatchResults(commands.Cog):
 
     @app_commands.command(name="matchresultsprompt", description="Send AOS match results prompt")
     async def matchresultsprompt(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
 
         channel = interaction.channel
         try:
@@ -150,7 +150,7 @@ class MatchResults(commands.Cog):
     @app_commands.command(name="spy", description="Spy on enemy team results")
     @app_commands.describe(enemy_team="Enemy team name to search for")
     async def spy(self, interaction: discord.Interaction, enemy_team: str):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         enemy_team = enemy_team.strip().lower()
         records = self.result_sheet.get_all_values()[1:]
 
@@ -164,7 +164,25 @@ class MatchResults(commands.Cog):
         for row in matched:
             output += f"- ID: {row[2]} | W: {row[3]} | L: {row[4]} | CB: {row[6]}\n"
 
-        await interaction.followup.send(output, ephemeral=True)
+                spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
+        cheer_emoji = "<a:cheers:1372752619159945226>"
+        angry_emoji = "<a:angry:1372752617641349120>"
+
+        header = f"# {spy_emoji} SPY NETWORK ({enemy_team.upper()}) {spy_emoji}\n\n"
+
+        maps_won = "\n".join(
+            f"{cheer_emoji} {map.strip()}"
+            for row in matched for map in row[3].split(",") if map.strip()
+        )
+        maps_lost = "\n".join(
+            f"{angry_emoji} {map.strip()}"
+            for row in matched for map in row[4].split(",") if map.strip()
+        )
+
+        body = f"**MAPS WON:**\n{maps_won or 'None'}\n\n**MAPS LOST:**\n{maps_lost or 'None'}"
+
+        await interaction.followup.send(header + body)
+
 
 # Register View + Cog
 async def setup(bot):
