@@ -46,7 +46,7 @@ class MatchVoiceChannels(commands.Cog):
                 time = row[3]
                 players = row[7] if len(row) > 7 else "Unknown"
                 name = f"{enemy_team} {league} {date} {time} {players}".strip()
-                self.voicechats_sheet.append_row([name, "", match_id])
+                self.voicechats_sheet.append_row([name, "", match_id], value_input_option="RAW")
 
     def clean_voicechats_log(self):
         rows = self.voicechats_sheet.get_all_values()
@@ -62,13 +62,13 @@ class MatchVoiceChannels(commands.Cog):
             if match_id in seen_ids:
                 continue  # Skip duplicate
             seen_ids.add(match_id)
-            to_keep.append([row[0], "", match_id])
+            to_keep.append([row[0].strip(), "", match_id])
 
         self.voicechats_sheet.clear()
         for row in to_keep:
-            self.voicechats_sheet.append_row(row)
+            self.voicechats_sheet.append_row(row, value_input_option="RAW")
 
-        return {row[2]: row[0] for row in to_keep[1:]}  # {match_id: channel_name}
+        return {row[2]: row[0] for row in to_keep[1:]}
 
     async def create_voice_channels(self, guild, match_data):
         category = guild.get_channel(self.category_id)
@@ -115,7 +115,7 @@ class MatchVoiceChannels(commands.Cog):
                 print(f"⚠️ Could not delete voice channel {row[1]}: {e}")
 
         self.voicechats_sheet.clear()
-        self.voicechats_sheet.append_row(["Channel Name", "Channel ID", "Match ID"])
+        self.voicechats_sheet.append_row(["Channel Name", "Channel ID", "Match ID"], value_input_option="RAW")
         await interaction.response.send_message(f"🧹 Cleared {len(deleted_channels)} match voice channels.", ephemeral=True)
 
     @tasks.loop(minutes=1)
