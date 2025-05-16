@@ -40,12 +40,16 @@ class MatchVoiceChannels(commands.Cog):
         for row in matches:
             if len(row) >= 9:
                 match_id = row[8].strip()
+                if not match_id or match_id.lower() == "match id":
+                    continue
                 enemy_team = row[4]
                 league = row[5]
                 date = row[2]
                 time = row[3]
                 players = row[7] if len(row) > 7 else "Unknown"
                 name = f"{enemy_team} {league} {date} {time} {players}".strip()
+                if name.lower() == "channel name":
+                    continue
                 self.voicechats_sheet.append_row([name, "", match_id], value_input_option="RAW")
 
     def clean_voicechats_log(self):
@@ -54,14 +58,19 @@ class MatchVoiceChannels(commands.Cog):
         to_keep = []
 
         for row in rows:
-            if len(row) < 3 or not row[2].strip():
-                continue  # Skip incomplete rows
-
+            if len(row) < 3:
+                continue
+            name = row[0].strip()
             match_id = row[2].strip()
+
+            if not match_id or match_id.lower() == "match id":
+                continue
+            if name.lower() == "channel name":
+                continue
             if match_id in seen_ids:
-                continue  # Skip duplicate
+                continue
             seen_ids.add(match_id)
-            to_keep.append([row[0].strip(), "", match_id])
+            to_keep.append([name, "", match_id])
 
         self.voicechats_sheet.clear()
         for row in to_keep:
