@@ -27,14 +27,18 @@ class Today(commands.Cog):
     async def today(self, interaction: discord.Interaction):
         await interaction.response.defer()
 
-            user_records = self.users_sheet.get_all_values()[1:]
+        user_records = self.users_sheet.get_all_values()[1:]
+        user_lookup = {}
+        for row in user_records:
+            if len(row) >= 3:
+                username, servername, userid = row[0], row[1], row[2]
+                mention = f"<@{userid}>"
+                user_lookup[username.lower()] = mention
+                user_lookup[servername.lower()] = mention
             user_lookup = {}
             for row in user_records:
                 if len(row) >= 3:
-                    username, nickname, user_id = row[0], row[1], row[2]
                     if user_id:
-                        user_lookup[username.lower()] = f"<@{user_id}>"
-                        user_lookup[nickname.lower()] = f"<@{user_id}>"
 
         members = await interaction.guild.fetch_members().flatten()
 
