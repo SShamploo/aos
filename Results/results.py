@@ -164,7 +164,7 @@ class MatchResults(commands.Cog):
         for row in matched:
             output += f"- ID: {row[2]} | W: {row[3]} | L: {row[4]} | CB: {row[6]}\n"
 
-                spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
+        spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
         cheer_emoji = "<a:cheers:1372752619159945226>"
         angry_emoji = "<a:angry:1372752617641349120>"
 
