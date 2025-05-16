@@ -1,4 +1,3 @@
-
 print("📦 Importing Results Cog...")
 
 import discord
@@ -190,3 +189,9 @@ class MatchResults(commands.Cog):
 
         except Exception as e:
             await interaction.followup.send(f"❌ SPY command failed: {e}")
+
+# Register View + Cog
+async def setup(bot):
+    cog = MatchResults(bot)
+    await bot.add_cog(cog)
+    bot.add_view(MatchResultsButton(cog.match_sheet, cog.result_sheet))
