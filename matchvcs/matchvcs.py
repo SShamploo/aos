@@ -33,57 +33,65 @@ class MatchVoiceChannels(commands.Cog):
             today.strftime("%m/%d"),
             today.strftime("%-m/%-d/%Y")
         ]
-        print(f"🗓️ Accepting any of: {today_strs}")
         rows = self.matches_sheet.get_all_values()[1:]
-        for row in rows:
-            print(f"➡️ Date from sheet: {row[2].strip()}")
         return [row for row in rows if row[2].strip() in today_strs]
 
-    async def create_today_voice_channels(self, guild):
-        print(f"🔍 Found guild: {guild.name if guild else 'None'}")
+    def log_match_data(self, matches):
+        for row in matches:
+            if len(row) >= 9:
+                match_id = row[8].strip()
+                enemy_team = row[4]
+                league = row[5]
+                date = row[2]
+                time = row[3]
+                players = row[7] if len(row) > 7 else "Unknown"
+                name = f"{enemy_team} {league} {date} {time} {players}".strip()
+                self.voicechats_sheet.append_row([name, "", match_id])
 
-        if not guild:
-            print("❌ No guild found.")
-            return
+    def clean_voicechats_log(self):
+        rows = self.voicechats_sheet.get_all_values()
+        seen_ids = set()
+        to_keep = []
 
+        for row in rows:
+            if len(row) < 3 or not row[2].strip():
+                continue  # Skip incomplete rows
+
+            match_id = row[2].strip()
+            if match_id in seen_ids:
+                continue  # Skip duplicate
+            seen_ids.add(match_id)
+            to_keep.append([row[0], "", match_id])
+
+        self.voicechats_sheet.clear()
+        for row in to_keep:
+            self.voicechats_sheet.append_row(row)
+
+        return {row[2]: row[0] for row in to_keep}  # {match_id: channel_name}
+
+    async def create_voice_channels(self, guild, match_data):
         category = guild.get_channel(self.category_id)
-        print(f"📂 Found category: {category.name if category else 'None'}")
-
         if not category:
             print(f"❌ Category ID {self.category_id} not found in guild.")
             return
 
-        # Get existing match IDs to prevent duplicates
-        existing_rows = self.voicechats_sheet.get_all_values()
-        existing_match_ids = set()
-        for row in existing_rows:
-            if len(row) >= 3 and row[2].strip().lower() != "match id":
-                existing_match_ids.add(row[2].strip())
-
-        matches = self.get_today_matches()
-        print(f"📅 Matches for today: {matches}")
-        for row in matches:
-            if len(row) < 9:
-                continue  # Ensure match ID exists
-
-            match_id = row[8].strip()
-            if match_id in existing_match_ids:
-                print(f"⏩ Duplicate match ID detected: {match_id}, skipping.")
-                continue
-
-            enemy_team = row[4]
-            league = row[5]
-            date = row[2]
-            time = row[3]
-            players = row[7] if len(row) > 7 else "Unknown"
-            name = f"{enemy_team} {league} {date} {time} {players}".strip()
-
+        for match_id, channel_name in match_data.items():
             try:
-                vc = await guild.create_voice_channel(name, category=category)
-                self.voicechats_sheet.append_row([name, str(vc.id), match_id])
-                print(f"✅ Created voice channel: {name}")
+                vc = await guild.create_voice_channel(channel_name, category=category)
+                all_rows = self.voicechats_sheet.get_all_values()
+                for i, row in enumerate(all_rows):
+                    if len(row) >= 3 and row[2] == match_id:
+                        self.voicechats_sheet.update_cell(i+1, 2, str(vc.id))
+                        break
+                print(f"✅ Created voice channel: {channel_name}")
             except Exception as e:
-                print(f"❌ Failed to create voice channel '{name}': {e}")
+                print(f"❌ Failed to create voice channel '{channel_name}': {e}")
+
+    async def create_today_voice_channels(self, guild):
+        matches = self.get_today_matches()
+        self.log_match_data(matches)
+        filtered_matches = self.clean_voicechats_log()
+        await self.create_voice_channels(guild, filtered_matches)
 
     @app_commands.command(name="creatematchvcs", description="Manually create today's match voice chats.")
     async def creatematchvcs(self, interaction: discord.Interaction):
@@ -94,7 +102,6 @@ class MatchVoiceChannels(commands.Cog):
     async def clearmatchvcs(self, interaction: discord.Interaction):
         guild = interaction.guild
         deleted_channels = []
-        failed_channels = []
 
         voice_rows = self.voicechats_sheet.get_all_values()[1:]
         for row in voice_rows:
@@ -104,7 +111,6 @@ class MatchVoiceChannels(commands.Cog):
                     await vc.delete()
                     deleted_channels.append(vc.name)
             except Exception as e:
-                failed_channels.append(row[1])
                 print(f"⚠️ Could not delete voice channel {row[1]}: {e}")
 
         self.voicechats_sheet.clear()
