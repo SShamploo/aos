@@ -39,12 +39,10 @@ class Today(commands.Cog):
             today_str = datetime.now().strftime("%-m/%-d")  # format MM/DD (without leading zero)
             posted_lineups = []
 
-            emoji_map = {
-                "AOSgold": "<:AOSgold:123456>",
-                "D9": "<:D9:123456>",
-                "ShadowJam": "<:ShadowJam:123456>",
-                "Weed_Gold": "<:Weed_Gold:123456>"
-            }
+            emoji_map = {}
+            for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
+                emoji = discord.utils.get(interaction.guild.emojis, name=name)
+                emoji_map[name] = str(emoji) if emoji else f":{name}:"
 
             for lineup in lineups:
                 match_id = lineup[1]
@@ -111,11 +109,10 @@ class Today(commands.Cog):
             embed.add_field(name="Top Reactions", value=react_column, inline=True)
             embed.add_field(name="Top Executions", value=exec_column, inline=True)
 
-            await interaction.followup.send(embed=embed)
+            await interaction.channel.send(embed=embed)
 
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Today(bot))
-
