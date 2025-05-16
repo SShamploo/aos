@@ -10,34 +10,37 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-class LineupDropdown(discord.ui.UserSelect):
-    def __init__(self, label):
-        super().__init__(placeholder=label, min_values=1, max_values=1, custom_id=label)
-        self.selected_user = None
+class ShooterSelect(discord.ui.UserSelect):
+    def __init__(self):
+        super().__init__(placeholder="Select up to 6 Shooters", min_values=1, max_values=6, custom_id="shooters")
+        self.selected_users = []
 
     async def callback(self, interaction: discord.Interaction):
-        self.selected_user = self.values[0]
+        self.selected_users = self.values
         await interaction.response.defer()
 
-class SubmitLineupButton(discord.ui.Button):
-    def __init__(self, match_row, emoji_map, sheet, dropdowns, match_id):
+class SubSelect(discord.ui.UserSelect):
+    def __init__(self):
+        super().__init__(placeholder="Select up to 2 Subs", min_values=0, max_values=2, custom_id="subs")
+        self.selected_users = []
+
+    async def callback(self, interaction: discord.Interaction):
+        self.selected_users = self.values
+        await interaction.response.defer()
+
+class SubmitCompactButton(discord.ui.Button):
+    def __init__(self, match_row, emoji_map, sheet, shooter_dropdown, sub_dropdown, match_id):
         super().__init__(label="✅ Submit Lineup", style=discord.ButtonStyle.success)
         self.match_row = match_row
         self.emoji_map = emoji_map
         self.sheet = sheet
-        self.dropdowns = dropdowns
+        self.shooter_dropdown = shooter_dropdown
+        self.sub_dropdown = sub_dropdown
         self.match_id = match_id
 
     async def callback(self, interaction: discord.Interaction):
-        shooters = []
-        subs = []
-
-        for dd in self.dropdowns:
-            selected = dd.selected_user
-            if "Shooter" in dd.placeholder:
-                shooters.append(selected.display_name if selected else "")
-            elif "Sub" in dd.placeholder:
-                subs.append(selected.display_name if selected else "")
+        shooters = [user.display_name for user in self.shooter_dropdown.selected_users]
+        subs = [user.display_name for user in self.sub_dropdown.selected_users]
 
         shooters += [""] * (6 - len(shooters))
         subs += [""] * (2 - len(subs))
@@ -81,22 +84,14 @@ class SubmitLineupButton(discord.ui.Button):
         self.sheet.append_row(row)
         await interaction.response.send_message("✅ Lineup submitted and posted!", ephemeral=True)
 
-class LineupView(discord.ui.View):
+class CompactLineupView(discord.ui.View):
     def __init__(self, match_row, emoji_map, sheet, match_id):
         super().__init__(timeout=300)
-        self.dropdowns = []
-
-        for i in range(6):
-            dd = LineupDropdown(f"Shooter {i+1}")
-            self.dropdowns.append(dd)
-            self.add_item(dd)
-
-        for i in range(2):
-            dd = LineupDropdown(f"Sub {i+1}")
-            self.dropdowns.append(dd)
-            self.add_item(dd)
-
-        self.add_item(SubmitLineupButton(match_row, emoji_map, sheet, self.dropdowns, match_id))
+        shooter_dd = ShooterSelect()
+        sub_dd = SubSelect()
+        self.add_item(shooter_dd)
+        self.add_item(sub_dd)
+        self.add_item(SubmitCompactButton(match_row, emoji_map, sheet, shooter_dd, sub_dd, match_id))
 
 class SetLineup(commands.Cog):
     def __init__(self, bot):
@@ -126,8 +121,8 @@ class SetLineup(commands.Cog):
                 emoji = discord.utils.get(interaction.guild.emojis, name=name)
                 emoji_map[name] = str(emoji) if emoji else f":{name}:"
 
-            view = LineupView(match_row, emoji_map, self.lineup_sheet, match_id)
-            await interaction.response.send_message("🎯 Select Shooters and Subs below:", view=view, ephemeral=True)
+            view = CompactLineupView(match_row, emoji_map, self.lineup_sheet, match_id)
+            await interaction.response.send_message("🎯 Select up to 6 Shooters and 2 Subs:", view=view, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
