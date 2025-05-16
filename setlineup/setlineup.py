@@ -96,7 +96,7 @@ class SetLineup(commands.Cog):
         try:
             data = self.match_sheet.get_all_values()
             rows = data[1:]
-            match_row = next((row for row in rows if row[-1] == str(match_id)), None)
+            match_row = next((row for row in rows if row[8] == str(match_id)), None)
 
             if not match_row:
                 await interaction.response.send_message("❌ Match ID not found.", ephemeral=True)
