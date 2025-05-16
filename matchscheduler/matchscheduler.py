@@ -1,7 +1,9 @@
 
+print("📦 Importing Results Cog...")
+
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 import os
 import json
 import base64
@@ -9,71 +11,114 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+from collections import defaultdict
 
-class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
-    def __init__(self, league, match_type, players, sheet):
-        super().__init__(timeout=None)
-        self.league = league
-        self.match_type = match_type
-        self.players = players
-        self.sheet = sheet
+class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
+    def __init__(self, match_sheet, result_sheet):
+        super().__init__()
+        self.match_sheet = match_sheet
+        self.result_sheet = result_sheet
 
-        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
-        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM, 8PM", required=True)
-        self.enemy_team = discord.ui.TextInput(label="Enemy Team", placeholder="Enter team name", required=True)
+        self.match_id = discord.ui.TextInput(
+            label="SCHEDULED MATCH ID",
+            placeholder="The match ID attached to the scheduled match in Dates and Times",
+            required=True
+        )
+        self.maps_won = discord.ui.TextInput(
+            label="Maps Won",
+            placeholder="Dealership 6-2, Hacienda 6-4, Protocol 6-5, etc.",
+            required=True
+        )
+        self.maps_lost = discord.ui.TextInput(
+            label="Maps Lost",
+            placeholder="Dealership 2-6, Hacienda 4-6, Protocol 5-6, etc.",
+            required=True
+        )
+        self.aos_players = discord.ui.TextInput(
+            label="AOS Players",
+            placeholder="Shamp, NxComp, Jay, etc.",
+            required=True
+        )
+        self.cb_results = discord.ui.TextInput(
+            label="CB Results",
+            placeholder="Abbreviated W/L only",
+            required=True
+        )
 
-        self.add_item(self.date)
-        self.add_item(self.time)
-        self.add_item(self.enemy_team)
+        self.add_item(self.match_id)
+        self.add_item(self.maps_won)
+        self.add_item(self.maps_lost)
+        self.add_item(self.aos_players)
+        self.add_item(self.cb_results)
 
     async def on_submit(self, interaction: discord.Interaction):
-        try:
-            # Defer safely and ensure no interaction timeout
-            await interaction.response.defer(thinking=True)
+        user = interaction.user
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        match_id_val = self.match_id.value.strip().lower()
 
-            channel = interaction.guild.get_channel(1360237474454175814)
-            if not channel:
-                await interaction.followup.send("❌ Could not find the match schedule channel.", ephemeral=True)
+        results_channel = interaction.client.get_channel(1361457240929996980)
+        if not results_channel:
+            await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
+            return
+
+        submitted_data = self.result_sheet.get_all_records()
+        for row in submitted_data:
+            existing_id = str(row.get("Match Id", "")).strip().lower()
+            if existing_id == match_id_val:
+                await interaction.response.send_message("HEY DUMBFUCK THIS WAS ALREADY SUBMITTED", ephemeral=True)
                 return
 
-            emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
-            emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
+        match_data = self.match_sheet.get_all_records()
+        match_row = next((row for row in match_data if str(row.get("Match ID", "")).strip() == self.match_id.value.strip()), None)
 
-            role_name = "Capo" if self.league == "HC" else "Soldier"
-            role = discord.utils.get(interaction.guild.roles, name=role_name)
-            role_mention = role.mention if role else f"@{role_name}"
+        if not match_row:
+            await interaction.response.send_message(f"❌ Match ID {self.match_id.value.strip()} not found in schedule.", ephemeral=True)
+            return
 
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            existing_rows = self.sheet.get_all_values()
-            match_id = len(existing_rows)
+        date = match_row["Date"]
+        time = match_row["Time"]
+        enemy_team = match_row["Enemy Team"]
+        league = match_row["League"]
+        match_type = match_row["Match Type"]
 
-            message = (
-                f"# {emoji_str} {self.date.value} | {self.time.value} | "
-                f"{self.enemy_team.value} | {self.league} | {self.match_type} | {self.players} | ID: {match_id} {role_mention}"
-            )
-            await channel.send(message)
-            await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
+        header_emoji = "<a:BlackCrown:1353482149096853606>"
+        section_emoji = "<a:ShadowJam:1357240936849211583>"
+        submitter_emoji = "<a:wut:1372687602305732618>"
+        cb_outcome = self.cb_results.value.strip().upper()
+        cb_text = "AOS WIN" if cb_outcome == "W" else "AOS LOSS" if cb_outcome == "L" else cb_outcome
 
-            self.sheet.append_row([
-                timestamp,
-                str(interaction.user),
-                self.date.value,
-                self.time.value,
-                self.enemy_team.value,
-                self.league,
-                self.match_type,
-                self.players,
-                match_id
-            ])
-        except Exception as e:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ Failed to fetch matches: {e}", ephemeral=True)
-            try:
-                await interaction.followup.send(f"❌ An error occurred: {e}", ephemeral=True)
-            except:
-                pass
+        combined_message = f"""**# {header_emoji} {date} | {time} | {enemy_team} | {league} | {match_type} | ID: {self.match_id.value.strip()} {header_emoji}**
+{section_emoji} **MAPS WON:** {self.maps_won.value.strip()}
+{section_emoji} **MAPS LOST:** {self.maps_lost.value.strip()}
+{section_emoji} **AOS PLAYERS:** {self.aos_players.value.strip()}
+{section_emoji} **CB RESULTS:** {cb_text}
+{submitter_emoji} **SUBMITTED BY:** <@{user.id}>"""
 
-class MatchScheduler(commands.Cog):
+        await results_channel.send(combined_message)
+        await interaction.response.send_message("✅ Match results submitted!", ephemeral=True)
+
+        self.result_sheet.append_row([
+            timestamp,
+            user.name,
+            self.match_id.value.strip(),
+            self.maps_won.value.strip(),
+            self.maps_lost.value.strip(),
+            self.aos_players.value.strip(),
+            cb_outcome,
+            enemy_team
+        ])
+
+class MatchResultsButton(discord.ui.View):
+    def __init__(self, match_sheet, result_sheet):
+        super().__init__(timeout=None)
+        self.match_sheet = match_sheet
+        self.result_sheet = result_sheet
+
+    @discord.ui.button(label="AOS MATCH RESULTS", style=discord.ButtonStyle.danger, custom_id="match_results_button")
+    async def open_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(MatchResultsModal(self.match_sheet, self.result_sheet))
+
+class MatchResults(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         load_dotenv()
@@ -82,74 +127,65 @@ class MatchScheduler(commands.Cog):
         creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
-        self.sheet = self.client.open("AOS").worksheet("matches")
+        self.match_sheet = self.client.open("AOS").worksheet("matches")
+        self.result_sheet = self.client.open("AOS").worksheet("matchresults")
 
-    @app_commands.command(name="schedulematch", description="Schedule a match and notify the team.")
-    @app_commands.choices(
-        league=[
-            app_commands.Choice(name="HC", value="HC"),
-            app_commands.Choice(name="AL", value="AL"),
-        ],
-        match_type=[
-            app_commands.Choice(name="OBJ", value="OBJ"),
-            app_commands.Choice(name="CB", value="CB"),
-            app_commands.Choice(name="CHALL", value="CHALL"),
-            app_commands.Choice(name="SCRIM", value="SCRIM"),
-            app_commands.Choice(name="COMP", value="COMP"),
-        ],
-        players=[
-            app_commands.Choice(name="4v4", value="4v4"),
-            app_commands.Choice(name="4v4+", value="4v4+"),
-            app_commands.Choice(name="5v5", value="5v5"),
-            app_commands.Choice(name="5v5+", value="5v5+"),
-            app_commands.Choice(name="6v6", value="6v6"),
-        ]
-    )
-    async def schedulematch(
-        self,
-        interaction: discord.Interaction,
-        league: app_commands.Choice[str],
-        match_type: app_commands.Choice[str],
-        players: app_commands.Choice[str]
-    ):
-        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, players.value, self.sheet))
+    @app_commands.command(name="matchresultsprompt", description="Send AOS match results prompt")
+    async def matchresultsprompt(self, interaction: discord.Interaction):
+        await interaction.response.defer()
 
-    @app_commands.command(name="currentmatches", description="View all current AL and HC matches.")
-    async def currentmatches(self, interaction: discord.Interaction):
+        channel = interaction.channel
         try:
-            rows = self.sheet.get_all_values()[1:]
-
-            def parse_date_time(row):
-                try:
-                    dt_str = f"{row[2]} {row[3].strip().upper()}"
-                    return datetime.strptime(dt_str, "%m/%d %I%p")
-                except:
-                    return datetime.min
-
-            al_matches = sorted([row for row in rows if row[5].strip().upper() == "AL"], key=parse_date_time)
-            hc_matches = sorted([row for row in rows if row[5].strip().upper() == "HC"], key=parse_date_time)
-
-            def format_matches(match_list):
-                return "\n".join([
-                    f"**<a:flighttounge:1372704594072965201> {row[2]} | {row[3]} | {row[4]} | {row[6]} | {row[7]} | ID: {row[8]}**"
-                    for row in match_list
-                ]) or "No matches found."
-
-            capo_role = discord.utils.get(interaction.guild.roles, name="Capo")
-            soldier_role = discord.utils.get(interaction.guild.roles, name="Soldier")
-            capo_mention = capo_role.mention if capo_role else "@CAPO"
-            soldier_mention = soldier_role.mention if soldier_role else "@SOLDIER"
-
-            message = (
-                f"# **<:AOSgold:1350641872531624049> AOS CURRENT MATCHES {capo_mention} {soldier_mention} <:AOSgold:1350641872531624049>**\n\n"
-                f"# **AL LEAGUE MATCHES:**\n" + format_matches(al_matches) + "\n\n"
-                f"# **HC LEAGUE MATCHES:**\n" + format_matches(hc_matches)
-            )
-            await interaction.response.send_message(message)
+            async for msg in channel.history(limit=10):
+                if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
+                    await msg.delete()
         except Exception as e:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ Failed to fetch matches: {e}", ephemeral=True)
+            print(f"⚠️ Cleanup error: {e}")
 
-# Setup
+        image_path = os.path.join(os.path.dirname(__file__), "matchresults.png")
+        file = discord.File(fp=image_path, filename="matchresults.png")
+        await channel.send(file=file)
+        await channel.send(view=MatchResultsButton(self.match_sheet, self.result_sheet))
+        await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
+
+    @app_commands.command(name="spy", description="Spy on enemy team results")
+    @app_commands.describe(enemy_team="Enemy team name to search for")
+    async def spy(self, interaction: discord.Interaction, enemy_team: str):
+        try:
+        try:
+            enemy_team = enemy_team.strip().lower()
+            records = self.result_sheet.get_all_values()[1:]
+            
+            matched = [row for row in records if row[7].strip().lower() == enemy_team]
+            
+            if not matched:
+            await interaction.followup.send(header + body)
+        except Exception as e:
+            await interaction.followup.send(f"❌ SPY command failed: {e}")
+            return
+
+        output = f"**Enemy Team Match History for `{enemy_team.upper()}`:**\n\n"
+        for row in matched:
+            output += f"- ID: {row[2]} | W: {row[3]} | L: {row[4]} | CB: {row[6]}\n"
+
+        spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
+        maps_won_group = defaultdict(list)
+        for row in matched:
+            for map in row[3].split(','):
+                map = map.strip()
+                if map: maps_won_group[map].append(map)
+        maps_won = '\n'.join(f"{cheer_emoji} {', '.join(group)}" for group in maps_won_group.values()) or 'None'
+        maps_lost_group = defaultdict(list)
+        for row in matched:
+            for map in row[4].split(','):
+                map = map.strip()
+                if map: maps_lost_group[map].append(map)
+        maps_lost = '\n'.join(f"{angry_emoji} {', '.join(group)}" for group in maps_lost_group.values()) or 'None'
+        await interaction.followup.send(header + body)
+
+
+# Register View + Cog
 async def setup(bot):
-    await bot.add_cog(MatchScheduler(bot))
+    cog = MatchResults(bot)
+    await bot.add_cog(cog)
+    bot.add_view(MatchResultsButton(cog.match_sheet, cog.result_sheet))
