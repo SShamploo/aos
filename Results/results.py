@@ -134,7 +134,6 @@ class MatchResults(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         channel = interaction.channel
-
         try:
             async for msg in channel.history(limit=10):
                 if msg.author.id == interaction.client.user.id and (msg.attachments or msg.components):
@@ -146,8 +145,26 @@ class MatchResults(commands.Cog):
         file = discord.File(fp=image_path, filename="matchresults.png")
         await channel.send(file=file)
         await channel.send(view=MatchResultsButton(self.match_sheet, self.result_sheet))
-
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
+
+    @app_commands.command(name="spy", description="Spy on enemy team results")
+    @app_commands.describe(enemy_team="Enemy team name to search for")
+    async def spy(self, interaction: discord.Interaction, enemy_team: str):
+        await interaction.response.defer(ephemeral=True)
+        enemy_team = enemy_team.strip().lower()
+        records = self.result_sheet.get_all_values()[1:]
+
+        matched = [row for row in records if row[7].strip().lower() == enemy_team]
+
+        if not matched:
+            await interaction.followup.send(f"❌ No match results found for `{enemy_team}`", ephemeral=True)
+            return
+
+        output = f"**Enemy Team Match History for `{enemy_team.upper()}`:**\n\n"
+        for row in matched:
+            output += f"- ID: {row[2]} | W: {row[3]} | L: {row[4]} | CB: {row[6]}\n"
+
+        await interaction.followup.send(output, ephemeral=True)
 
 # Register View + Cog
 async def setup(bot):
