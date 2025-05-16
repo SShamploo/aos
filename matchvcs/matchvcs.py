@@ -87,6 +87,27 @@ class MatchVoiceChannels(commands.Cog):
         await self.create_today_voice_channels(interaction.guild)
         await interaction.response.send_message("✅ Match voice channels created for today.", ephemeral=True)
 
+    @app_commands.command(name="clearmatchvcs", description="Clear all match voice channels listed in the voicechats tab.")
+    async def clearmatchvcs(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        deleted_channels = []
+        failed_channels = []
+
+        voice_rows = self.voicechats_sheet.get_all_values()[1:]
+        for row in voice_rows:
+            try:
+                vc = guild.get_channel(int(row[1]))
+                if vc:
+                    await vc.delete()
+                    deleted_channels.append(vc.name)
+            except Exception as e:
+                failed_channels.append(row[1])
+                print(f"⚠️ Could not delete voice channel {row[1]}: {e}")
+
+        self.voicechats_sheet.clear()
+        self.voicechats_sheet.append_row(["Channel Name", "Channel ID"])
+        await interaction.response.send_message(f"🧹 Cleared {len(deleted_channels)} match voice channels.", ephemeral=True)
+
     @tasks.loop(minutes=1)
     async def midnight_task(self):
         now = datetime.utcnow()
