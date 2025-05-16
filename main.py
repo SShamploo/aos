@@ -64,10 +64,11 @@ async def on_ready():
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         client = gspread.authorize(creds)
 
-        match_sheet = client.open("AOS").worksheet("matchresults")
+        match_sheet = client.open("AOS").worksheet("matches")
+        result_sheet = client.open("AOS").worksheet("matchresults")
         giveaway_sheet = client.open("AOS").worksheet("giveaway")
 
-        bot.add_view(MatchResultsButton(match_sheet))
+        bot.add_view(MatchResultsButton(match_sheet, result_sheet))
         bot.add_view(GiveawayButton(giveaway_sheet))
 
         print("✅ Registered persistent views")
