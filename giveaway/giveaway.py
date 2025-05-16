@@ -98,8 +98,6 @@ class GiveawayForm(commands.Cog):
         await channel.send(view=GiveawayButton(self.giveaway_sheet))
         await interaction.followup.send("✅ Giveaway prompt sent.", ephemeral=True)
 
-@app_commands.command(name="leaderboard", description="Display top 10 for Frags, Reactions, and Executions")
-    async def leaderboard(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:
             rows = self.giveaway_sheet.get_all_values()[1:]
@@ -127,6 +125,49 @@ class GiveawayForm(commands.Cog):
                     lines.append(f"`{i+1}.` {user} — `{val}`")
                 return "
 ".join(lines)
+
+            frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
+            react_column = format_column("Top Reactions", top_reactions, "🔁")
+            exec_column = format_column("Top Executions", top_executions, "<a:GhostFaceMurder:1373023142750195862>")
+
+            embed = discord.Embed(title="🏆 GIVEAWAY LEADERBOARD", color=discord.Color.red())
+            embed.add_field(name="Top Frags", value=frag_column, inline=True)
+            embed.add_field(name="Top Reactions", value=react_column, inline=True)
+            embed.add_field(name="Top Executions", value=exec_column, inline=True)
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            await interaction.followup.send(f"❌ Leaderboard failed: {e}", ephemeral=True)
+
+
+    @app_commands.command(name="leaderboard", description="Display top 10 for Frags, Reactions, and Executions")
+    async def leaderboard(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        try:
+            rows = self.giveaway_sheet.get_all_values()[1:]
+            if not rows:
+                await interaction.followup.send("No data found.")
+                return
+
+            leaderboard_data = []
+            for row in rows:
+                username = row[0]
+                frags = int(row[1]) if row[1].isdigit() else 0
+                reactions = int(row[2]) if row[2].isdigit() else 0
+                executions = int(row[3]) if row[3].isdigit() else 0
+                leaderboard_data.append((username, frags, reactions, executions))
+
+            top_frags = sorted(leaderboard_data, key=lambda x: x[1], reverse=True)[:10]
+            top_reactions = sorted(leaderboard_data, key=lambda x: x[2], reverse=True)[:10]
+            top_executions = sorted(leaderboard_data, key=lambda x: x[3], reverse=True)[:10]
+
+            def format_column(title, data, emoji):
+                lines = [f"**{emoji} {title.upper()}**"]
+                for i, (user, frags, reactions, executions) in enumerate(data):
+                    val = frags if title == "Top Frags" else reactions if title == "Top Reactions" else executions
+                    lines.append(f"`{i+1}.` {user} — `{val}`")
+                return "\n".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
             react_column = format_column("Top Reactions", top_reactions, "🔁")
