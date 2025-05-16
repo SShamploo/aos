@@ -36,7 +36,7 @@ class LineupTextModal(discord.ui.Modal, title="Enter Lineup Names"):
 
         match_line = (
             f"# {self.emoji_map['AOSgold']} {self.match_row[2]} | {self.match_row[3]} | {self.match_row[4]} | "
-            f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[-1]} {role_mention}"
+            f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[8]} {role_mention}"
         )
 
         d9_line = self.emoji_map["D9"] * 10
