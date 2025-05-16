@@ -35,9 +35,12 @@ class Today(commands.Cog):
                 mention = f"<@{userid}>"
                 user_lookup[username.lower()] = mention
                 user_lookup[servername.lower()] = mention
-            user_lookup = {}
             for row in user_records:
                 if len(row) >= 3:
+                username, servername, userid = row[0], row[1], row[2]
+                mention = f"<@{userid}>"
+                user_lookup[username.lower()] = mention
+                user_lookup[servername.lower()] = mention
                     if user_id:
 
         members = await interaction.guild.fetch_members().flatten()
@@ -96,7 +99,6 @@ class Today(commands.Cog):
             rows = self.client.open("AOS").worksheet("giveaway").get_all_values()[1:]
             leaderboard_data = []
             for row in rows:
-                username = row[0]
                 frags = int(row[1]) if row[1].isdigit() else 0
                 reactions = int(row[2]) if row[2].isdigit() else 0
                 executions = int(row[3]) if row[3].isdigit() else 0
