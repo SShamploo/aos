@@ -118,17 +118,16 @@ class GiveawayForm(commands.Cog):
             top_reactions = sorted(leaderboard_data, key=lambda x: x[2], reverse=True)[:10]
             top_executions = sorted(leaderboard_data, key=lambda x: x[3], reverse=True)[:10]
 
-            rank_emojis = [
-                "<a:BlackCrown:1353482149096853606>",
-                "<a:WhiteCrown:1353482417893277759>",
-                "<a:blue_crown1:1241454447729836142>"
-            ] + ["<a:crown_red:1296157710831587449>"] * 7
-
             def format_column(title, data, emoji):
                 lines = [f"**{emoji} {title.upper()}**"]
                 for i, entry in enumerate(data):
                     user = entry[0]
-                    lines.append(f"{rank_emojis[i]} **#{i+1} {user}**")
+                    if i == 0:
+                        lines.append(f"<a:BlackCrown:1353482149096853606> **#{i+1} {user}**")
+                    elif i == 1:
+                        lines.append(f"<a:WhiteCrown:1353482417893277759> **#{i+1} {user}**")
+                    else:
+                        lines.append(f"**#{i+1} {user}**")
                 return "\n\n".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
