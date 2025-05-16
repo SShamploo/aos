@@ -148,44 +148,45 @@ class MatchResults(commands.Cog):
         await channel.send(view=MatchResultsButton(self.match_sheet, self.result_sheet))
         await interaction.followup.send("✅ Prompt sent.", ephemeral=True)
 
+    
     @app_commands.command(name="spy", description="Spy on enemy team results")
     @app_commands.describe(enemy_team="Enemy team name to search for")
     async def spy(self, interaction: discord.Interaction, enemy_team: str):
-        try:
+        await interaction.response.defer()
+        from collections import defaultdict
         try:
             enemy_team = enemy_team.strip().lower()
             records = self.result_sheet.get_all_values()[1:]
-            
             matched = [row for row in records if row[7].strip().lower() == enemy_team]
-            
+
             if not matched:
+                await interaction.followup.send(f"❌ No match results found for `{enemy_team}`")
+                return
+
+            spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
+            cheer_emoji = "<a:cheers:1372752619159945226>"
+            angry_emoji = "<a:angry:1372752617641349120>"
+
+            header = f"# {spy_emoji} SPY NETWORK ({enemy_team.upper()}) {spy_emoji}\n\n"
+
+            maps_won_group = defaultdict(list)
+            for row in matched:
+                for map in row[3].split(','):
+                    map = map.strip()
+                    if map:
+                        maps_won_group[map].append(map)
+            maps_won = '\n'.join(f"{cheer_emoji} {', '.join(group)}" for group in maps_won_group.values()) or 'None'
+
+            maps_lost_group = defaultdict(list)
+            for row in matched:
+                for map in row[4].split(','):
+                    map = map.strip()
+                    if map:
+                        maps_lost_group[map].append(map)
+            maps_lost = '\n'.join(f"{angry_emoji} {', '.join(group)}" for group in maps_lost_group.values()) or 'None'
+
+            body = f"**MAPS WON:**\n{maps_won}\n\n**MAPS LOST:**\n{maps_lost}"
             await interaction.followup.send(header + body)
+
         except Exception as e:
             await interaction.followup.send(f"❌ SPY command failed: {e}")
-            return
-
-        output = f"**Enemy Team Match History for `{enemy_team.upper()}`:**\n\n"
-        for row in matched:
-            output += f"- ID: {row[2]} | W: {row[3]} | L: {row[4]} | CB: {row[6]}\n"
-
-        spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
-        maps_won_group = defaultdict(list)
-        for row in matched:
-            for map in row[3].split(','):
-                map = map.strip()
-                if map: maps_won_group[map].append(map)
-        maps_won = '\n'.join(f"{cheer_emoji} {', '.join(group)}" for group in maps_won_group.values()) or 'None'
-        maps_lost_group = defaultdict(list)
-        for row in matched:
-            for map in row[4].split(','):
-                map = map.strip()
-                if map: maps_lost_group[map].append(map)
-        maps_lost = '\n'.join(f"{angry_emoji} {', '.join(group)}" for group in maps_lost_group.values()) or 'None'
-        await interaction.followup.send(header + body)
-
-
-# Register View + Cog
-async def setup(bot):
-    cog = MatchResults(bot)
-    await bot.add_cog(cog)
-    bot.add_view(MatchResultsButton(cog.match_sheet, cog.result_sheet))
