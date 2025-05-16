@@ -129,9 +129,7 @@ class GiveawayForm(commands.Cog):
                 for i, entry in enumerate(data):
                     user = entry[0]
                     lines.append(f"{rank_emojis[i]} **#{i+1} {user}**")
-                return "
-
-".join(lines)
+                return "\n\n".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
             react_column = format_column("Top Reactions", top_reactions, "🔁")
