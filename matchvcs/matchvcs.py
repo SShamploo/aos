@@ -53,9 +53,13 @@ class MatchVoiceChannels(commands.Cog):
             print(f"❌ Category ID {self.category_id} not found in guild.")
             return
 
-        # Get existing channel names to avoid duplicates
+        # Get existing channel names to avoid duplicates (case-insensitive, strip whitespace, ignore header)
         existing_rows = self.voicechats_sheet.get_all_values()[1:]
-        existing_names = {row[0] for row in existing_rows}
+        existing_names = {
+            row[0].strip()
+            for row in existing_rows
+            if row and row[0].strip().lower() != "channel name"
+        }
 
         matches = self.get_today_matches()
         print(f"📅 Matches for today: {matches}")
@@ -65,7 +69,7 @@ class MatchVoiceChannels(commands.Cog):
             date = row[2]
             time = row[3]
             players = row[7] if len(row) > 7 else "Unknown"
-            name = f"{enemy_team} {league} {date} {time} {players}"
+            name = f"{enemy_team} {league} {date} {time} {players}".strip()
 
             if name in existing_names:
                 print(f"⏩ Skipping duplicate channel: {name}")
@@ -101,7 +105,6 @@ class MatchVoiceChannels(commands.Cog):
                 print(f"⚠️ Could not delete voice channel {row[1]}: {e}")
 
         self.voicechats_sheet.clear()
-        self.voicechats_sheet.append_row(["Channel Name", "Channel ID"])
         await interaction.response.send_message(f"🧹 Cleared {len(deleted_channels)} match voice channels.", ephemeral=True)
 
     @tasks.loop(minutes=1)
