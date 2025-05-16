@@ -14,8 +14,8 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
         super().__init__()
         self.giveaway_sheet = giveaway_sheet
 
-        self.top_frag = discord.ui.TextInput(label="Top Frag:", required=True, placeholder="Enter a number")
-        self.execution = discord.ui.TextInput(label="Execution:", required=True, placeholder="Enter a number")
+        self.top_frag = discord.ui.TextInput(label="Top Frag:", required=False, placeholder="Enter a number")
+        self.execution = discord.ui.TextInput(label="Execution:", required=False, placeholder="Enter a number")
 
         self.add_item(self.top_frag)
         self.add_item(self.execution)
@@ -24,8 +24,8 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
         try:
             username = interaction.user.name
             user_mention = interaction.user.mention
-            top_frag_value = int(self.top_frag.value.strip())
-            execution_value = int(self.execution.value.strip())
+            top_frag_value = int(self.top_frag.value.strip()) if self.top_frag.value.strip() else 0
+            execution_value = int(self.execution.value.strip()) if self.execution.value.strip() else 0
 
             existing_rows = self.giveaway_sheet.get_all_values()
             headers = existing_rows[0]
