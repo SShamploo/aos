@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -49,7 +50,7 @@ class PlayerInfoModal(discord.ui.Modal, title="AOS PLAYER INFORMATION"):
             rows = self.sheet.get_all_values()
             updated = False
 
-            for idx, row in enumerate(rows[1:], start=2):  # Skip header
+            for idx, row in enumerate(rows[1:], start=2):
                 if len(row) >= 3 and row[2] == str(user.id):
                     self.sheet.update(f"A{idx}:F{idx}", [values])
                     updated = True
@@ -147,10 +148,10 @@ class PlayerInformation(commands.Cog):
             return
 
         members = [m for m in guild.members if not m.bot]
-        user_data = [[str(m), str(m.id)] for m in members]
+        user_data = [[str(m), m.display_name, str(m.id)] for m in members]
 
         self.users_sheet.clear()
-        self.users_sheet.append_row(["Username", "User ID"])
+        self.users_sheet.append_row(["Username", "Server Name", "User ID"])
         self.users_sheet.append_rows(user_data)
 
         valid_ids = set(str(m.id) for m in members)
@@ -169,7 +170,6 @@ class PlayerInformation(commands.Cog):
             ephemeral=True
         )
 
-# Register persistent view
 async def setup(bot):
     cog = PlayerInformation(bot)
     await bot.add_cog(cog)
