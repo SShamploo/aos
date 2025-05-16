@@ -52,11 +52,10 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
 
             target_channel = interaction.client.get_channel(1373018460401176657)
             if target_channel:
-                await target_channel.send(
-                    f"""# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>
+                message = f"""# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>
 # <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`
 # <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"""
-                )
+                await target_channel.send(message)
 
             await interaction.response.send_message("✅ Your giveaway entry has been submitted!", ephemeral=True)
         except Exception as e:
@@ -131,9 +130,7 @@ class GiveawayForm(commands.Cog):
                     user = entry[0]
                     value = entry[column_index]
                     lines.append(f"{rank_emojis[i]} **{user}** — `{value}`")
-                return "
-
-".join(lines)
+                return "\n\n".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>", 1)
             react_column = format_column("Top Reactions", top_reactions, "🔁", 2)
