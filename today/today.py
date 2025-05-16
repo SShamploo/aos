@@ -25,6 +25,7 @@ class Today(commands.Cog):
     @app_commands.command(name="today", description="Post today's lineups and leaderboard")
     async def today(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        members = await interaction.guild.fetch_members().flatten()
 
         try:
             # Match today's lineups
