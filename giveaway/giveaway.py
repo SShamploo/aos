@@ -53,11 +53,9 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
             target_channel = interaction.client.get_channel(1373018460401176657)
             if target_channel:
                 await target_channel.send(
-                    f"# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>
-"
-                    f"# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`
-"
-                    f"# <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"
+                    f"""# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>
+# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`
+# <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"""
                 )
 
             await interaction.response.send_message("✅ Your giveaway entry has been submitted!", ephemeral=True)
