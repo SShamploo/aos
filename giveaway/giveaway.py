@@ -120,14 +120,13 @@ class GiveawayForm(commands.Cog):
             top_executions = sorted(leaderboard_data, key=lambda x: x[3], reverse=True)[:10]
 
             rank_emojis = [
-                "<a:BlackCrown:1353482149096853606>",  # 1st
-                "<a:WhiteCrown:1353482417893277759>",  # 2nd
-                "<a:blue_crown1:1241454447729836142>",  # 3rd
-            ] + ["<a:crown_red:1296157710831587449>"] * 7  # 4th - 10th
+                "<a:BlackCrown:1353482149096853606>",
+                "<a:WhiteCrown:1353482417893277759>",
+                "<a:blue_crown1:1241454447729836142>"
+            ] + ["<a:crown_red:1296157710831587449>"] * 7
 
             def format_column(title, data, emoji, column):
-                lines = [f"**{emoji} {title.upper()}**
-"]
+                lines = [f"**{emoji} {title.upper()}**"]
                 for i, entry in enumerate(data):
                     user = entry[0]
                     value = entry[column]
