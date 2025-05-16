@@ -13,8 +13,9 @@ import base64
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Import view from match results
+# Import views from persistent modules
 from Results.results import MatchResultsButton
+from giveaway.giveaway import GiveawayButton
 
 # Load environment variables
 load_dotenv()
@@ -33,7 +34,8 @@ initial_extensions = [
     "matchscheduler.matchscheduler",
     "availablescheduler.availablescheduler",
     "setlineup.setlineup",
-    "matchvcs.matchvcs"
+    "matchvcs.matchvcs",
+    "giveaway.giveaway"
 ]
 
 async def load_cogs():
@@ -55,17 +57,23 @@ async def on_ready():
         print(f"❌ Failed to sync slash commands: {e}")
         traceback.print_exc()
 
-    # ✅ Register persistent match results view
+    # ✅ Register persistent views
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_json = json.loads(base64.b64decode(os.getenv("GOOGLE_SHEETS_CREDS_B64")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         client = gspread.authorize(creds)
-        sheet = client.open("AOS").worksheet("matchresults")
-        bot.add_view(MatchResultsButton(sheet))
-        print("✅ Registered MatchResultsButton persistent view")
+
+        match_sheet = client.open("AOS").worksheet("matchresults")
+        giveaway_sheet = client.open("AOS").worksheet("giveaway")
+
+        bot.add_view(MatchResultsButton(match_sheet))
+        bot.add_view(GiveawayButton(giveaway_sheet))
+
+        print("✅ Registered persistent views")
     except Exception as e:
-        print(f"❌ Failed to register MatchResultsButton view: {e}")
+        print(f"❌ Failed to register persistent views: {e}")
+        traceback.print_exc()
 
 # 🚀 Start bot
 async def main():
