@@ -35,7 +35,8 @@ initial_extensions = [
     "availablescheduler.availablescheduler",
     "setlineup.setlineup",
     "matchvcs.matchvcs",
-    "giveaway.giveaway"
+    "giveaway.giveaway",
+    "today.today"
 ]
 
 async def load_cogs():
