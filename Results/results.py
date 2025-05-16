@@ -151,7 +151,6 @@ class MatchResults(commands.Cog):
     @app_commands.command(name="spy", description="Spy on enemy team results")
     @app_commands.describe(enemy_team="Enemy team name to search for")
     async def spy(self, interaction: discord.Interaction, enemy_team: str):
-        await interaction.response.defer()
         try:
         try:
             enemy_team = enemy_team.strip().lower()
