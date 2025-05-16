@@ -41,9 +41,17 @@ class MatchVoiceChannels(commands.Cog):
 
     async def create_today_voice_channels(self):
         guild = discord.utils.get(self.bot.guilds)
+        print(f"🔍 Found guild: {guild.name if guild else 'None'}")
+
+        if not guild:
+            print("❌ No guilds found for the bot.")
+            return
+
         category = guild.get_channel(self.category_id)
+        print(f"📂 Found category: {category.name if category else 'None'}")
+
         if not category:
-            print("❌ Category not found.")
+            print(f"❌ Category ID {self.category_id} not found in guild.")
             return
 
         # Delete old voice channels
