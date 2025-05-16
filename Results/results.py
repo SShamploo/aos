@@ -18,7 +18,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
         self.match_sheet = match_sheet
         self.result_sheet = result_sheet
 
-        self.match_id = discord.ui.TextInput(A
+        self.match_id = discord.ui.TextInput(
             label="SCHEDULED MATCH ID",
             placeholder="The match ID attached to the scheduled match in Dates and Times",
             required=True
@@ -60,7 +60,6 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             await interaction.response.send_message("❌ Results channel not found.", ephemeral=True)
             return
 
-        # Check if match ID is already submitted
         submitted_data = self.result_sheet.get_all_records()
         for row in submitted_data:
             existing_id = str(row.get("Match Id", "")).strip().lower()
@@ -68,7 +67,6 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
                 await interaction.response.send_message("HEY DUMBFUCK THIS WAS ALREADY SUBMITTED", ephemeral=True)
                 return
 
-        # Lookup match info from "matches" tab
         match_data = self.match_sheet.get_all_records()
         match_row = next((row for row in match_data if str(row.get("Match ID", "")).strip() == self.match_id.value.strip()), None)
 
@@ -106,7 +104,7 @@ class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
             self.maps_lost.value.strip(),
             self.aos_players.value.strip(),
             cb_outcome,
-            enemy_team  # newly added column
+            enemy_team
         ])
 
 class MatchResultsButton(discord.ui.View):
