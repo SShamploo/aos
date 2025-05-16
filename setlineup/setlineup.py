@@ -39,11 +39,8 @@ class SubmitCompactButton(discord.ui.Button):
         self.match_id = match_id
 
     async def callback(self, interaction: discord.Interaction):
-        shooters = [user.display_name for user in self.shooter_dropdown.selected_users]
-        subs = [user.display_name for user in self.sub_dropdown.selected_users]
-
-        shooters += [""] * (6 - len(shooters))
-        subs += [""] * (2 - len(subs))
+        shooters = self.shooter_dropdown.selected_users
+        subs = self.sub_dropdown.selected_users
 
         league = self.match_row[5]
         enemy_team = self.match_row[4]
@@ -58,8 +55,11 @@ class SubmitCompactButton(discord.ui.Button):
         )
 
         d9_line = self.emoji_map["D9"] * 10
-        shooters_lines = "\n".join([f"{self.emoji_map['ShadowJam']} {name}" for name in shooters])
-        subs_lines = "\n".join([f"{self.emoji_map['Weed_Gold']} {name}" for name in subs]) if any(subs) else f"{self.emoji_map['Weed_Gold']} None"
+        shooters_lines = "\n".join([f"{self.emoji_map['ShadowJam']} {user.mention}" for user in shooters])
+        subs_lines = (
+            "\n".join([f"{self.emoji_map['Weed_Gold']} {user.mention}" for user in subs])
+            if subs else f"{self.emoji_map['Weed_Gold']} None"
+        )
 
         message = (
             f"{match_line}\n"
@@ -73,7 +73,10 @@ class SubmitCompactButton(discord.ui.Button):
         sent_msg = await interaction.channel.send(message)
 
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        row = [timestamp, self.match_id, enemy_team, league] + shooters[:6] + subs[:2]
+        shooter_names = [user.display_name for user in shooters] + [""] * (6 - len(shooters))
+        sub_names = [user.display_name for user in subs] + [""] * (2 - len(subs))
+
+        row = [timestamp, self.match_id, enemy_team, league] + shooter_names + sub_names
         row += [str(sent_msg.id), str(interaction.channel.id)]
 
         all_rows = self.sheet.get_all_values()
