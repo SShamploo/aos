@@ -53,8 +53,10 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
             target_channel = interaction.client.get_channel(1373018460401176657)
             if target_channel:
                 await target_channel.send(
-                    f"# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>\n"
-                    f"# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`\n"
+                    f"# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>
+"
+                    f"# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`
+"
                     f"# <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"
                 )
 
@@ -125,11 +127,11 @@ class GiveawayForm(commands.Cog):
                 "<a:blue_crown1:1241454447729836142>"
             ] + ["<a:crown_red:1296157710831587449>"] * 7
 
-            def format_column(title, data, emoji, column):
+            def format_column(title, data, emoji, column_index):
                 lines = [f"**{emoji} {title.upper()}**"]
                 for i, entry in enumerate(data):
                     user = entry[0]
-                    value = entry[column]
+                    value = entry[column_index]
                     lines.append(f"{rank_emojis[i]} **{user}** — `{value}`")
                 return "
 
@@ -147,7 +149,9 @@ class GiveawayForm(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            await interaction.followup.send(f"❌ Leaderboard failed: {e}", ephemeral=True)async def setup(bot):
+            await interaction.followup.send(f"❌ Leaderboard failed: {e}", ephemeral=True)
+
+async def setup(bot):
     cog = GiveawayForm(bot)
     await bot.add_cog(cog)
     bot.add_view(GiveawayButton(cog.giveaway_sheet))
