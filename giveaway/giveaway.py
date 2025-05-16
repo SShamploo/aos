@@ -124,17 +124,18 @@ class GiveawayForm(commands.Cog):
                 "<a:blue_crown1:1241454447729836142>"
             ] + ["<a:crown_red:1296157710831587449>"] * 7
 
-            def format_column(title, data, emoji, column_index):
+            def format_column(title, data, emoji):
                 lines = [f"**{emoji} {title.upper()}**"]
                 for i, entry in enumerate(data):
                     user = entry[0]
-                    value = entry[column_index]
-                    lines.append(f"{rank_emojis[i]} **{user}** — `{value}`")
-                return "\n\n".join(lines)
+                    lines.append(f"{rank_emojis[i]} **#{i+1} {user}**")
+                return "
 
-            frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>", 1)
-            react_column = format_column("Top Reactions", top_reactions, "🔁", 2)
-            exec_column = format_column("Top Executions", top_executions, "<a:GhostFaceMurder:1373023142750195862>", 3)
+".join(lines)
+
+            frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
+            react_column = format_column("Top Reactions", top_reactions, "🔁")
+            exec_column = format_column("Top Executions", top_executions, "<a:GhostFaceMurder:1373023142750195862>")
 
             embed = discord.Embed(title="🏆 **GIVEAWAY LEADERBOARD**", color=discord.Color.red())
             embed.add_field(name="Top Frags", value=frag_column, inline=True)
