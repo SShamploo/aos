@@ -8,69 +8,69 @@ import base64
 import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
 
-class LineupTextModal(discord.ui.Modal, title="Enter Lineup Names"):
-    def __init__(self, match_row, emoji_map, match_id, sheet):
+class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
+    def __init__(self, league, match_type, players, sheet):
         super().__init__(timeout=None)
-        self.match_row = match_row
-        self.emoji_map = emoji_map
-        self.match_id = match_id
+        self.league = league
+        self.match_type = match_type
+        self.players = players
         self.sheet = sheet
 
-        self.shooters_input = discord.ui.TextInput(
-            label="Shooters (comma-separated)", placeholder="e.g. Name1, Name2, Name3", required=True, style=discord.TextStyle.paragraph)
-        self.subs_input = discord.ui.TextInput(
-            label="Subs (comma-separated)", placeholder="e.g. Sub1, Sub2", required=False, style=discord.TextStyle.paragraph)
+        self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
+        self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM, 8PM", required=True)
+        self.enemy_team = discord.ui.TextInput(label="Enemy Team", placeholder="Enter team name", required=True)
 
-        self.add_item(self.shooters_input)
-        self.add_item(self.subs_input)
+        self.add_item(self.date)
+        self.add_item(self.time)
+        self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
-        shooters = [s.strip() for s in self.shooters_input.value.split(",") if s.strip()]
-        subs = [s.strip() for s in self.subs_input.value.split(",") if s.strip()]
-        league = self.match_row[5]
+        await interaction.response.defer(thinking=True)
+        try:
+            channel = interaction.guild.get_channel(1360237474454175814)
+            if not channel:
+                await interaction.followup.send("❌ Could not find the match schedule channel.", ephemeral=True)
+                return
 
-        role_name = "Capo" if league == "HC" else "Soldier"
-        role = discord.utils.get(interaction.guild.roles, name=role_name)
-        role_mention = role.mention if role else f"@{role_name}"
+            emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
+            emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
 
-        match_line = (
-            f"# {self.emoji_map['AOSgold']} {self.match_row[2]} | {self.match_row[3]} | {self.match_row[4]} | "
-            f"{self.match_row[5]} | {self.match_row[6]} | ID: {self.match_row[-1]} {role_mention}"
-        )
+            role_name = "Capo" if self.league == "HC" else "Soldier"
+            role = discord.utils.get(interaction.guild.roles, name=role_name)
+            role_mention = role.mention if role else f"@{role_name}"
 
-        d9_line = self.emoji_map["D9"] * 10
-        shooters_lines = "\n".join([f"{self.emoji_map['ShadowJam']} {name}" for name in shooters])
-        subs_lines = "\n".join([f"{self.emoji_map['Weed_Gold']} {name}" for name in subs]) if subs else f"{self.emoji_map['Weed_Gold']} None"
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            existing_rows = self.sheet.get_all_values()
+            match_id = len(existing_rows)
 
-        message = (
-            f"{match_line}\n"
-            f"{d9_line}\n**Shooters:**\n"
-            f"{shooters_lines}\n"
-            f"{d9_line}\n**Subs:**\n"
-            f"{subs_lines}\n"
-            f"{d9_line}"
-        )
+            message = (
+                f"# {emoji_str} {self.date.value} | {self.time.value} | "
+                f"{self.enemy_team.value} | {self.league} | {self.match_type} | {self.players} | ID: {match_id} {role_mention}"
+            )
 
-        await interaction.response.send_message(message)
+            sent_msg = await channel.send(message)
+            await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
 
-        timestamp = discord.utils.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        match_id = str(self.match_id)
-        enemy_team = self.match_row[4]
+            self.sheet.append_row([
+                timestamp,
+                str(interaction.user),
+                self.date.value,
+                self.time.value,
+                self.enemy_team.value,
+                self.league,
+                self.match_type,
+                self.players,
+                match_id,
+                str(sent_msg.id),
+                str(sent_msg.channel.id)
+            ])
+        except Exception as e:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Failed to schedule match: {e}", ephemeral=True)
 
-        shooters += [""] * (6 - len(shooters))
-        subs += [""] * (2 - len(subs))
-
-        row = [timestamp, match_id, enemy_team, league] + shooters[:6] + subs[:2]
-
-        all_rows = self.sheet.get_all_values()
-        to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == match_id]
-        for idx in reversed(to_delete):
-            self.sheet.delete_rows(idx)
-
-        self.sheet.append_row(row)
-
-class SetLineup(commands.Cog):
+class MatchScheduler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         load_dotenv()
@@ -79,37 +79,38 @@ class SetLineup(commands.Cog):
         creds_json = json.loads(base64.b64decode(creds_b64.encode("utf-8")).decode("utf-8"))
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
-        self.match_sheet = self.client.open("AOS").worksheet("matches")
-        self.lineup_sheet = self.client.open("AOS").worksheet("lineups")
+        self.sheet = self.client.open("AOS").worksheet("matches")
 
-    @app_commands.command(name="setlineup", description="Post lineup for a scheduled match.")
+    @app_commands.command(name="schedulematch", description="Schedule a match and notify the team.")
     @app_commands.choices(
-        lineup_type=[
+        league=[
+            app_commands.Choice(name="HC", value="HC"),
+            app_commands.Choice(name="AL", value="AL"),
+        ],
+        match_type=[
+            app_commands.Choice(name="OBJ", value="OBJ"),
+            app_commands.Choice(name="CB", value="CB"),
+            app_commands.Choice(name="CHALL", value="CHALL"),
+            app_commands.Choice(name="SCRIM", value="SCRIM"),
+            app_commands.Choice(name="COMP", value="COMP"),
+        ],
+        players=[
             app_commands.Choice(name="4v4", value="4v4"),
+            app_commands.Choice(name="4v4+", value="4v4+"),
             app_commands.Choice(name="5v5", value="5v5"),
             app_commands.Choice(name="5v5+", value="5v5+"),
             app_commands.Choice(name="6v6", value="6v6"),
         ]
     )
-    async def setlineup(self, interaction: discord.Interaction, match_id: int, lineup_type: app_commands.Choice[str]):
-        try:
-            data = self.match_sheet.get_all_values()
-            rows = data[1:]
-            match_row = next((row for row in rows if row[-1] == str(match_id)), None)
+    async def schedulematch(
+        self,
+        interaction: discord.Interaction,
+        league: app_commands.Choice[str],
+        match_type: app_commands.Choice[str],
+        players: app_commands.Choice[str]
+    ):
+        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, players.value, self.sheet))
 
-            if not match_row:
-                await interaction.response.send_message("❌ Match ID not found.", ephemeral=True)
-                return
-
-            emoji_map = {}
-            for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
-                emoji = discord.utils.get(interaction.guild.emojis, name=name)
-                emoji_map[name] = str(emoji) if emoji else f":{name}:"
-
-            await interaction.response.send_modal(LineupTextModal(match_row, emoji_map, match_id, self.lineup_sheet))
-
-        except Exception as e:
-            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
-
+# Setup
 async def setup(bot):
-    await bot.add_cog(SetLineup(bot))
+    await bot.add_cog(MatchScheduler(bot))
