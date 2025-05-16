@@ -185,7 +185,7 @@ class MatchResults(commands.Cog):
             spy_emoji = "<a:Spy_Kids_Glasses_Check:1372752191198068796>"
             cheer_emoji = "<a:cheers:1372752619159945226>"
             angry_emoji = "<a:angry:1372752617641349120>"
-            header = f"# {spy_emoji} SPY NETWORK ({enemy_team.upper()}) {spy_emoji}
+            header = f"# {spy_emoji} SPY NETWORK ({enemy_team.upper()}) {spy_emoji}\n\n"
 
 "
 
