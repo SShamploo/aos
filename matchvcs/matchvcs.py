@@ -7,6 +7,7 @@ import json
 import base64
 import gspread
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -26,8 +27,7 @@ class MatchVoiceChannels(commands.Cog):
         self.midnight_task.start()
 
     def get_today_date_str(self):
-        utc_now = datetime.utcnow()
-        pst_now = utc_now.replace(hour=utc_now.hour - 7)
+        pst_now = datetime.now(ZoneInfo("America/Los_Angeles"))
         return pst_now.strftime("%-m/%-d")  # e.g., 5/18
 
     def get_today_matches(self):
@@ -68,8 +68,8 @@ class MatchVoiceChannels(commands.Cog):
 
     @tasks.loop(minutes=1)
     async def midnight_task(self):
-        now_utc = datetime.utcnow()
-        if now_utc.hour == 7 and now_utc.minute == 0:
+        pst_now = datetime.now(ZoneInfo("America/Los_Angeles"))
+        if pst_now.hour == 0 and pst_now.minute == 0:
             await self.create_today_voice_channels()
 
 async def setup(bot):
