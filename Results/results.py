@@ -11,6 +11,7 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+from collections import defaultdict
 
 class MatchResultsModal(discord.ui.Modal, title="AOS MATCH RESULTS"):
     def __init__(self, match_sheet, result_sheet):
@@ -151,13 +152,16 @@ class MatchResults(commands.Cog):
     @app_commands.describe(enemy_team="Enemy team name to search for")
     async def spy(self, interaction: discord.Interaction, enemy_team: str):
         await interaction.response.defer()
-        enemy_team = enemy_team.strip().lower()
+        try:
+            enemy_team = enemy_team.strip().lower()
         records = self.result_sheet.get_all_values()[1:]
 
         matched = [row for row in records if row[7].strip().lower() == enemy_team]
 
         if not matched:
-            await interaction.followup.send(f"❌ No match results found for `{enemy_team}`", ephemeral=True)
+            await interaction.followup.send(header + body)
+        except Exception as e:
+            await interaction.followup.send(f"❌ SPY command failed: {e}")
             return
 
         output = f"**Enemy Team Match History for `{enemy_team.upper()}`:**\n\n"
