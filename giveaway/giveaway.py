@@ -119,18 +119,28 @@ class GiveawayForm(commands.Cog):
             top_reactions = sorted(leaderboard_data, key=lambda x: x[2], reverse=True)[:10]
             top_executions = sorted(leaderboard_data, key=lambda x: x[3], reverse=True)[:10]
 
-            def format_column(title, data, emoji):
-                lines = [f"**{emoji} {title.upper()}**"]
-                for i, (user, frags, reactions, executions) in enumerate(data):
-                    val = frags if title == "Top Frags" else reactions if title == "Top Reactions" else executions
-                    lines.append(f"`{i+1}.` {user} — `{val}`")
-                return "\n".join(lines)
+            rank_emojis = [
+                "<a:BlackCrown:1353482149096853606>",  # 1st
+                "<a:WhiteCrown:1353482417893277759>",  # 2nd
+                "<a:blue_crown1:1241454447729836142>",  # 3rd
+            ] + ["<a:crown_red:1296157710831587449>"] * 7  # 4th - 10th
 
-            frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
-            react_column = format_column("Top Reactions", top_reactions, "🔁")
-            exec_column = format_column("Top Executions", top_executions, "<a:GhostFaceMurder:1373023142750195862>")
+            def format_column(title, data, emoji, column):
+                lines = [f"**{emoji} {title.upper()}**
+"]
+                for i, entry in enumerate(data):
+                    user = entry[0]
+                    value = entry[column]
+                    lines.append(f"{rank_emojis[i]} **{user}** — `{value}`")
+                return "
 
-            embed = discord.Embed(title="🏆 GIVEAWAY LEADERBOARD", color=discord.Color.red())
+".join(lines)
+
+            frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>", 1)
+            react_column = format_column("Top Reactions", top_reactions, "🔁", 2)
+            exec_column = format_column("Top Executions", top_executions, "<a:GhostFaceMurder:1373023142750195862>", 3)
+
+            embed = discord.Embed(title="🏆 **GIVEAWAY LEADERBOARD**", color=discord.Color.red())
             embed.add_field(name="Top Frags", value=frag_column, inline=True)
             embed.add_field(name="Top Reactions", value=react_column, inline=True)
             embed.add_field(name="Top Executions", value=exec_column, inline=True)
@@ -138,9 +148,7 @@ class GiveawayForm(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            await interaction.followup.send(f"❌ Leaderboard failed: {e}", ephemeral=True)
-
-async def setup(bot):
+            await interaction.followup.send(f"❌ Leaderboard failed: {e}", ephemeral=True)async def setup(bot):
     cog = GiveawayForm(bot)
     await bot.add_cog(cog)
     bot.add_view(GiveawayButton(cog.giveaway_sheet))
