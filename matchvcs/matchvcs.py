@@ -87,11 +87,21 @@ class MatchVoiceChannels(commands.Cog):
         await self.create_today_voice_channels(interaction.guild)
         await interaction.response.send_message("✅ Match voice channels created for today.", ephemeral=True)
 
+    @app_commands.command(name="testmidnighttask", description="Simulate the midnight voice chat creation task.")
+    async def testmidnighttask(self, interaction: discord.Interaction):
+        await self.create_today_voice_channels(interaction.guild)
+        await interaction.response.send_message("✅ Simulated midnight task run.", ephemeral=True)
+
     @tasks.loop(minutes=1)
     async def midnight_task(self):
         now = datetime.utcnow()
         if now.hour == 7 and now.minute == 0:  # 12AM PST
-            pass  # Optional: Add fallback logic to access guild for auto execution
+            if self.bot.guilds:
+                guild = self.bot.guilds[0]
+                await self.create_today_voice_channels(guild)
+                print("🌙 Auto-created voice channels at midnight PST.")
+            else:
+                print("❌ No guilds found for midnight task.")
 
 async def setup(bot):
     await bot.add_cog(MatchVoiceChannels(bot))
