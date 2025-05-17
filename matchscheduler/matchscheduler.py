@@ -27,33 +27,28 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
+        import traceback
         await interaction.response.defer(ephemeral=True)
+        print("↪️ Modal submitted")
         try:
+            print("🔍 Getting channel...")
             channel = interaction.guild.get_channel(1360237474454175814)
             if not channel:
                 await interaction.followup.send("❌ Could not find the match schedule channel.", ephemeral=True)
                 return
 
+            print("🔍 Getting emoji...")
             emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
             emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
 
+            print("🔍 Getting role mention...")
             role_name = "Capo" if self.league == "HC" else "Soldier"
             role = discord.utils.get(interaction.guild.roles, name=role_name)
             role_mention = role.mention if role else f"@{role_name}"
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Ensure matcharchive exists and fetch next Match ID
-            try:
-                archive_sheet = self.sheet.spreadsheet.worksheet("matcharchive")
-            except:
-                archive_sheet = self.sheet.spreadsheet.add_worksheet(title="matcharchive", rows="1000", cols="11")
-                archive_sheet.update("A1:K1", [
-                    ["Timestamp", "User", "Date", "Time", "Enemy Team", "League", "Match Type", "Players", "Match ID", "Message ID", "Channel ID"]
-                ])
-
-            archive_ids = archive_sheet.col_values(9)[1:]  # Skip header
-            match_id = max([int(i) for i in archive_ids if i.isdigit()] or [0]) + 1
+            # Get the current highest Match ID and increment it
             meta_sheet = self.sheet.spreadsheet.worksheet("meta")
             last_id = int(meta_sheet.acell("A2").value or 0)
             match_id = last_id + 1
@@ -67,6 +62,7 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             sent_msg = await channel.send(message)
             await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
 
+            print("📥 Appending to matches...")
             self.sheet.append_row([
                 timestamp,
                 str(interaction.user),
@@ -80,21 +76,10 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
                 str(sent_msg.id),
                 str(sent_msg.channel.id)
             ])
-
-            archive_sheet.append_row([
-                timestamp,
-                str(interaction.user),
-                self.date.value,
-                self.time.value,
-                self.enemy_team.value,
-                self.league,
-                self.match_type,
-                self.players,
-                match_id,
-                str(sent_msg.id),
-                str(sent_msg.channel.id)
-            ])
         except Exception as e:
+            traceback_text = traceback.format_exc()
+            await interaction.followup.send(f"❌ Match submission failed:\n```{traceback_text}```", ephemeral=True)
+            print(traceback_text)
             if not interaction.response.is_done():
                 await interaction.response.send_message(f"❌ Failed to schedule match: {e}", ephemeral=True)
 
