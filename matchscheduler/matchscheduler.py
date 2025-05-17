@@ -43,8 +43,15 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Use matcharchive to determine next Match ID
-            archive_sheet = self.sheet.spreadsheet.worksheet("matcharchive")
+            # Ensure matcharchive exists and fetch next Match ID
+            try:
+                archive_sheet = self.sheet.spreadsheet.worksheet("matcharchive")
+            except:
+                archive_sheet = self.sheet.spreadsheet.add_worksheet(title="matcharchive", rows="1000", cols="11")
+                archive_sheet.update("A1:K1", [
+                    ["Timestamp", "User", "Date", "Time", "Enemy Team", "League", "Match Type", "Players", "Match ID", "Message ID", "Channel ID"]
+                ])
+
             archive_ids = archive_sheet.col_values(9)[1:]  # Skip header
             match_id = max([int(i) for i in archive_ids if i.isdigit()] or [0]) + 1
             meta_sheet = self.sheet.spreadsheet.worksheet("meta")
