@@ -44,8 +44,10 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             # Get the current highest Match ID and increment it
-            existing_ids = self.sheet.col_values(9)[1:]  # Skip header
-            match_id = max([int(i) for i in existing_ids if i.isdigit()] or [0]) + 1
+            meta_sheet = self.sheet.spreadsheet.worksheet("meta")
+            last_id = int(meta_sheet.acell("A2").value or 0)
+            match_id = last_id + 1
+            meta_sheet.update("A2", str(match_id))
 
             message = (
                 f"# {emoji_str} {self.date.value} | {self.time.value} | "
