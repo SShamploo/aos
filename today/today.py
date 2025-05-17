@@ -45,8 +45,7 @@ class Today(commands.Cog):
             emoji_map = {}
             for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
                 emoji = discord.utils.get(interaction.guild.emojis, name=name)
-                emoji_map[name] = str(emoji) if emoji else f":{name}:"
-
+                emoji_map[name] = str(emoji) if emoji else f":{name}:\n"
             for lineup in lineups:
                 match_id = lineup[1]
                 matching_match = next((row for row in matches if row[8] == match_id), None)
@@ -57,36 +56,32 @@ class Today(commands.Cog):
                     subs = [name for name in lineup[10:12] if name]
 
                     # Role mention
-                    role_name = "Capo" if league == "HC" else "Soldier"
-                    role = discord.utils.get(interaction.guild.roles, name=role_name)
-                    role_mention = role.mention if role else f"@{role_name}"
-
+                    role_name = "Capo" if league == "HC" else "Soldier\n"                    role = discord.utils.get(interaction.guild.roles, name=role_name)
+                    role_mention = role.mention if role else f"@{role_name}\n"
                     match_line = (
-                        f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} | "
-                        f"{matching_match[5]} | {matching_match[6]} | ID: {matching_match[8]} {role_mention}"
-                    )
+                        f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} | \n"                        f"{matching_match[5]} | {matching_match[6]} | ID: {matching_match[8]} {role_mention}\n"                    )
 
                     d9_line = emoji_map["D9"] * 10
 
-                    shooters_lines = "\n".join([
+                    shooters_lines = \n"".join([
                         f"{emoji_map['ShadowJam']} " + (next((m.mention for m in members if m.display_name == s or m.name == s), s))
                         for s in shooters
                     ])
                     subs_lines = (
-                        "\n".join([
+                        \n"".join([
                             f"{emoji_map['Weed_Gold']} " + (next((m.mention for m in members if m.display_name == s or m.name == s), s))
                             for s in subs
-                        ]) if subs else f"{emoji_map['Weed_Gold']} None"
-                    )
+                        ]) if subs else f"{emoji_map['Weed_Gold']} None\n"                    )
 
                     message = (
-                        f"{match_line}\n"
-                        f"{d9_line}\n**Shooters:**\n"
-                        f"{shooters_lines}\n"
-                        f"{d9_line}\n**Subs:**\n"
-                        f"{subs_lines}\n"
-                        f"{d9_line}"
-                    )
+                        f"{match_line}
+\n"                        f"{d9_line}
+**Shooters:**
+\n"                        f"{shooters_lines}
+\n"                        f"{d9_line}
+**Subs:**
+\n"                        f"{subs_lines}
+\n"                        f"{d9_line}\n"                    )
 
                     await interaction.followup.send(message)
                     posted_lineups.append(match_id)
@@ -119,8 +114,7 @@ class Today(commands.Cog):
                         lines.append(f"<a:WhiteCrown:1353482417893277759> **#{i+1} {user}**")
                     else:
                         lines.append(f"**#{i+1} {user}**")
-                return "
-
+                return \n"
 ".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
