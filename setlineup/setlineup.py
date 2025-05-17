@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -70,6 +69,32 @@ class SubmitCompactButton(discord.ui.Button):
             f"{d9_line}"
         )
 
+        # Delete existing messages for this Match ID
+        all_rows = self.sheet.get_all_values()
+        to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == str(self.match_id)]
+        for idx in reversed(to_delete):
+            try:
+                msg_id = int(all_rows[idx-1][9])
+                ch_id = int(all_rows[idx-1][10])
+                channel = interaction.client.get_channel(ch_id)
+                if channel:
+                    msg = await channel.fetch_message(msg_id)
+                    await msg.delete()
+            except:
+                pass
+
+        for idx in reversed(to_delete):
+            try:
+                old_message_id = all_rows[idx - 1][13]  # Message ID is column N (index 13)
+                old_channel_id = all_rows[idx - 1][14]  # Channel ID is column O (index 14)
+                old_channel = interaction.guild.get_channel(int(old_channel_id))
+                if old_channel:
+                    old_msg = await old_channel.fetch_message(int(old_message_id))
+                    await old_msg.delete()
+            except Exception as e:
+                print(f"Failed to delete old message: {e}")
+            self.sheet.delete_rows(idx)
+
         sent_msg = await interaction.channel.send(message)
 
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,11 +103,6 @@ class SubmitCompactButton(discord.ui.Button):
 
         row = [timestamp, self.match_id, enemy_team, league] + shooter_names + sub_names
         row += [str(sent_msg.id), str(interaction.channel.id)]
-
-        all_rows = self.sheet.get_all_values()
-        to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == str(self.match_id)]
-        for idx in reversed(to_delete):
-            self.sheet.delete_rows(idx)
 
         self.sheet.append_row(row)
         await interaction.response.send_message("✅ Lineup submitted and posted!", ephemeral=True)
