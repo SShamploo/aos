@@ -56,7 +56,8 @@ class Today(commands.Cog):
                     subs = [name for name in lineup[10:12] if name]
 
                     # Role mention
-                    role_name = "Capo" if league == "HC" else "Soldier"                    role = discord.utils.get(interaction.guild.roles, name=role_name)
+                    role_name = "Capo" if league == "HC" else "Soldier"
+                    role = discord.utils.get(interaction.guild.roles, name=role_name)
                     role_mention = role.mention if role else f"@{role_name}\n"
                     match_line = (
                         f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} | \n"                        f"{matching_match[5]} | {matching_match[6]} | ID: {matching_match[8]} {role_mention}\n"                    )
