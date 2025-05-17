@@ -77,13 +77,14 @@ match_line = f"""
 ]) if subs else f"{emoji_map['Weed_Gold']} None"
 "                    )
 
-                    message = (
-f"{match_line}"
-
-"                        f"{d9_line}
+message = f"""{match_line}
+{d9_line}
 **Shooters:**
-
-"                        f"{shooters_lines}
+{shooters_lines}
+{d9_line}
+**Subs:**
+{subs_lines}
+{d9_line}"""
 
 "                        f"{d9_line}
 **Subs:**
