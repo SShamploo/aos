@@ -93,14 +93,16 @@ class Today(commands.Cog):
 
             # Leaderboard
             rows = self.client.open("AOS").worksheet("giveaway").get_all_values()[1:]
+            if not rows:
+                await interaction.channel.send("No data found.")
+                return
+
             leaderboard_data = []
             for row in rows:
-                if len(row) < 4 or not row[0].strip():
-                    continue
-                username = row[0].strip()
-                frags = int(row[1]) if len(row) > 1 and row[1].isdigit() else 0
-                reactions = int(row[2]) if len(row) > 2 and row[2].isdigit() else 0
-                executions = int(row[3]) if len(row) > 3 and row[3].isdigit() else 0
+                username = row[0]
+                frags = int(row[1]) if row[1].isdigit() else 0
+                reactions = int(row[2]) if row[2].isdigit() else 0
+                executions = int(row[3]) if row[3].isdigit() else 0
                 leaderboard_data.append((username, frags, reactions, executions))
 
             top_frags = sorted(leaderboard_data, key=lambda x: x[1], reverse=True)[:10]
@@ -112,12 +114,14 @@ class Today(commands.Cog):
                 for i, entry in enumerate(data):
                     user = entry[0]
                     if i == 0:
-                        lines.append(f"<a:BlackCrown:1353482149096853606> **#1 {user}**")
+                        lines.append(f"<a:BlackCrown:1353482149096853606> **#{i+1} {user}**")
                     elif i == 1:
-                        lines.append(f"<a:WhiteCrown:1353482417893277759> **#2 {user}**")
+                        lines.append(f"<a:WhiteCrown:1353482417893277759> **#{i+1} {user}**")
                     else:
                         lines.append(f"**#{i+1} {user}**")
-                return "\n\n".join(lines)
+                return "
+
+".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
             react_column = format_column("Top Reactions", top_reactions, "🔁")
