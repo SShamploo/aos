@@ -45,7 +45,7 @@ class Today(commands.Cog):
             emoji_map = {}
             for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
                 emoji = discord.utils.get(interaction.guild.emojis, name=name)
-                emoji_map[name] = str(emoji) if emoji else f":{name}:
+emoji_map[name] = str(emoji) if emoji else f":{name}:"
 "
             for lineup in lineups:
                 match_id = lineup[1]
@@ -59,10 +59,10 @@ class Today(commands.Cog):
                     # Role mention
                     role_name = "Capo" if league == "HC" else "Soldier"
                     role = discord.utils.get(interaction.guild.roles, name=role_name)
-                    role_mention = role.mention if role else f"@{role_name}
+role_mention = role.mention if role else f"@{role_name}"
 "
                     match_line = (
-                        f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} | 
+f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} |"
 "                        f"{matching_match[5]} | {matching_match[6]} | ID: {matching_match[8]} {role_mention}
 "                    )
 
@@ -78,11 +78,11 @@ class Today(commands.Cog):
 "".join([
                             f"{emoji_map['Weed_Gold']} " + (next((m.mention for m in members if m.display_name == s or m.name == s), s))
                             for s in subs
-                        ]) if subs else f"{emoji_map['Weed_Gold']} None
+]) if subs else f"{emoji_map['Weed_Gold']} None"
 "                    )
 
                     message = (
-                        f"{match_line}
+f"{match_line}"
 
 "                        f"{d9_line}
 **Shooters:**
@@ -147,7 +147,7 @@ class Today(commands.Cog):
             import traceback
             tb = traceback.format_exc()
             print(tb)
-            await interaction.followup.send(f"""❌ Error: {e}
+await interaction.followup.send(f"""❌ Error: {e}"
 ```{tb}```""", ephemeral=True)
 
 async def setup(bot):
