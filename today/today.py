@@ -33,7 +33,7 @@ class Today(commands.Cog):
                     mention = f"<@{userid}>"
                     user_lookup[username.lower()] = mention
                     user_lookup[servername.lower()] = mention
-            members = await interaction.guild.fetch_members().flatten()
+            members = [m async for m in interaction.guild.fetch_members(limit=None)]
             try:
                 # Match today's lineups
                 match_data = self.match_sheet.get_all_values()
