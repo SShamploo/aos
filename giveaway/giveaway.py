@@ -14,15 +14,7 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
         super().__init__()
         self.giveaway_sheet = giveaway_sheet
 
-        self.top_frag = discord.ui.Select(
-            placeholder="Top Frag?",
-            options=[
-                discord.SelectOption(label="Yes", value="yes"),
-                discord.SelectOption(label="No", value="no")
-            ],
-            min_values=1,
-            max_values=1
-        )
+        self.top_frag = discord.ui.TextInput(label="Top Frag?", required=True, placeholder="Yes or No")
         self.execution = discord.ui.TextInput(label="Execution:", required=False, placeholder="Enter a number")
 
         self.add_item(self.top_frag)
@@ -32,7 +24,8 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
         try:
             username = interaction.user.name
             user_mention = interaction.user.mention
-            top_frag_value = 1 if self.top_frag.values[0] == "yes" else 0
+            top_frag_raw = self.top_frag.value.strip().lower()
+            top_frag_value = 1 if top_frag_raw in ["yes", "y"] else 0
             execution_value = int(self.execution.value.strip()) if self.execution.value.strip() else 0
 
             existing_rows = self.giveaway_sheet.get_all_values()
@@ -44,12 +37,7 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
                 if row[user_column_index].strip().lower() == username.lower():
                     current_frag = int(row[1]) if row[1] else 0
                     current_exec = int(row[3]) if row[3] else 0
-                    new_row = [
-                        username,
-                        current_frag + top_frag_value,
-                        "",  # Top Reactions not used
-                        current_exec + execution_value
-                    ]
+                    new_row = [username, current_frag + top_frag_value, "", current_exec + execution_value]
                     self.giveaway_sheet.update(f"A{i}:D{i}", [new_row])
                     found = True
                     break
@@ -60,9 +48,11 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
 
             target_channel = interaction.client.get_channel(1373018460401176657)
             if target_channel:
-                message = f"""# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>
-# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`
-# <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"""
+                message = (
+                    f"# <a:BlackCrown:1353482149096853606> New Giveaway Entry Added by {user_mention} <a:BlackCrown:1353482149096853606>\n"
+                    f"# <:CronusZen:1373022628146843671> Top Frag: `{top_frag_value}`\n"
+                    f"# <a:GhostFaceMurder:1373023142750195862> Execution: `{execution_value}`"
+                )
                 await target_channel.send(message)
 
             await interaction.response.send_message("✅ Your giveaway entry has been submitted!", ephemeral=True)
@@ -136,9 +126,7 @@ class GiveawayForm(commands.Cog):
                         lines.append(f"<a:WhiteCrown:1353482417893277759> **#{i+1} {user}**")
                     else:
                         lines.append(f"**#{i+1} {user}**")
-                return "
-
-".join(lines)
+                return "\n\n".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
             react_column = format_column("Top Reactions", top_reactions, "🔁")
