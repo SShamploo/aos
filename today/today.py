@@ -46,7 +46,6 @@ class Today(commands.Cog):
             for name in ["AOSgold", "D9", "ShadowJam", "Weed_Gold"]:
                 emoji = discord.utils.get(interaction.guild.emojis, name=name)
 emoji_map[name] = str(emoji) if emoji else f":{name}:"
-"
             for lineup in lineups:
                 match_id = lineup[1]
                 matching_match = next((row for row in matches if row[8] == match_id), None)
@@ -60,7 +59,6 @@ emoji_map[name] = str(emoji) if emoji else f":{name}:"
                     role_name = "Capo" if league == "HC" else "Soldier"
                     role = discord.utils.get(interaction.guild.roles, name=role_name)
 role_mention = role.mention if role else f"@{role_name}"
-"
                     match_line = (
 f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} |"
 "                        f"{matching_match[5]} | {matching_match[6]} | ID: {matching_match[8]} {role_mention}
@@ -129,7 +127,6 @@ f"{match_line}"
                     else:
                         lines.append(f"**#{i+1} {user}**")
                 return 
-"
 ".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
