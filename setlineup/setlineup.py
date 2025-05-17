@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -28,11 +29,12 @@ class SubSelect(discord.ui.UserSelect):
         await interaction.response.defer()
 
 class SubmitCompactButton(discord.ui.Button):
-    def __init__(self, match_row, emoji_map, sheet, shooter_dropdown, sub_dropdown, match_id):
+    def __init__(self, match_row, emoji_map, sheet, archive_sheet, shooter_dropdown, sub_dropdown, match_id):
         super().__init__(label="✅ Submit Lineup", style=discord.ButtonStyle.success)
         self.match_row = match_row
         self.emoji_map = emoji_map
         self.sheet = sheet
+        self.archive_sheet = archive_sheet
         self.shooter_dropdown = shooter_dropdown
         self.sub_dropdown = sub_dropdown
         self.match_id = match_id
@@ -69,31 +71,19 @@ class SubmitCompactButton(discord.ui.Button):
             f"{d9_line}"
         )
 
-        # Delete existing messages for this Match ID
-        all_rows = self.sheet.get_all_values()
-        to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == str(self.match_id)]
-        for idx in reversed(to_delete):
-            try:
-                msg_id = int(all_rows[idx-1][9])
-                ch_id = int(all_rows[idx-1][10])
-                channel = interaction.client.get_channel(ch_id)
-                if channel:
-                    msg = await channel.fetch_message(msg_id)
-                    await msg.delete()
-            except:
-                pass
-
-        for idx in reversed(to_delete):
-            try:
-                old_message_id = all_rows[idx - 1][13]  # Message ID is column N (index 13)
-                old_channel_id = all_rows[idx - 1][14]  # Channel ID is column O (index 14)
-                old_channel = interaction.guild.get_channel(int(old_channel_id))
-                if old_channel:
-                    old_msg = await old_channel.fetch_message(int(old_message_id))
-                    await old_msg.delete()
-            except Exception as e:
-                print(f"Failed to delete old message: {e}")
-            self.sheet.delete_rows(idx)
+        # Delete previous message for this match_id if it exists in archive sheet
+        archive_rows = self.archive_sheet.get_all_values()
+        for row in archive_rows[1:]:
+            if row[1] == str(self.match_id):
+                try:
+                    msg_id = int(row[-2])
+                    ch_id = int(row[-1])
+                    channel = interaction.client.get_channel(ch_id)
+                    if channel:
+                        msg = await channel.fetch_message(msg_id)
+                        await msg.delete()
+                except:
+                    pass
 
         sent_msg = await interaction.channel.send(message)
 
@@ -104,17 +94,24 @@ class SubmitCompactButton(discord.ui.Button):
         row = [timestamp, self.match_id, enemy_team, league] + shooter_names + sub_names
         row += [str(sent_msg.id), str(interaction.channel.id)]
 
+        # Delete any existing row in "lineups" tab
+        all_rows = self.sheet.get_all_values()
+        to_delete = [i for i, row in enumerate(all_rows[1:], start=2) if row[1] == str(self.match_id)]
+        for idx in reversed(to_delete):
+            self.sheet.delete_rows(idx)
         self.sheet.append_row(row)
+        self.archive_sheet.append_row(row)
+
         await interaction.response.send_message("✅ Lineup submitted and posted!", ephemeral=True)
 
 class CompactLineupView(discord.ui.View):
-    def __init__(self, match_row, emoji_map, sheet, match_id):
+    def __init__(self, match_row, emoji_map, sheet, archive_sheet, match_id):
         super().__init__(timeout=300)
         shooter_dd = ShooterSelect()
         sub_dd = SubSelect()
         self.add_item(shooter_dd)
         self.add_item(sub_dd)
-        self.add_item(SubmitCompactButton(match_row, emoji_map, sheet, shooter_dd, sub_dd, match_id))
+        self.add_item(SubmitCompactButton(match_row, emoji_map, sheet, archive_sheet, shooter_dd, sub_dd, match_id))
 
 class SetLineup(commands.Cog):
     def __init__(self, bot):
@@ -127,6 +124,7 @@ class SetLineup(commands.Cog):
         self.client = gspread.authorize(creds)
         self.match_sheet = self.client.open("AOS").worksheet("matches")
         self.lineup_sheet = self.client.open("AOS").worksheet("lineups")
+        self.archive_sheet = self.client.open("AOS").worksheet("lineuparchive")
 
     @app_commands.command(name="setlineup", description="Post lineup for a scheduled match.")
     async def setlineup(self, interaction: discord.Interaction, match_id: int):
@@ -144,7 +142,7 @@ class SetLineup(commands.Cog):
                 emoji = discord.utils.get(interaction.guild.emojis, name=name)
                 emoji_map[name] = str(emoji) if emoji else f":{name}:"
 
-            view = CompactLineupView(match_row, emoji_map, self.lineup_sheet, match_id)
+            view = CompactLineupView(match_row, emoji_map, self.lineup_sheet, self.archive_sheet, match_id)
             await interaction.response.send_message("🎯 Select up to 6 Shooters and 2 Subs:", view=view, ephemeral=True)
 
         except Exception as e:
