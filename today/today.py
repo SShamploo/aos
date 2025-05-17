@@ -24,7 +24,9 @@ class Today(commands.Cog):
 
     @app_commands.command(name="today", description="Post today's lineups and leaderboard")
     async def today(self, interaction: discord.Interaction):
+        print('📌 Step 1: deferring response')
         await interaction.response.defer()
+        print('📌 Step 2: fetching members')
         members = await interaction.guild.fetch_members().flatten()
 
         try:
@@ -129,7 +131,11 @@ class Today(commands.Cog):
             await interaction.channel.send(embed=embed)
 
         except Exception as e:
-            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        await interaction.followup.send(f'❌ Error: {e}
+```{tb}```', ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Today(bot))
