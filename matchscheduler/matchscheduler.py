@@ -11,12 +11,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
 class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
-    def __init__(self, league, match_type, players, sheet):
+    def __init__(self, league, match_type, players, sheet, archive_sheet):
         super().__init__(timeout=None)
         self.league = league
         self.match_type = match_type
         self.players = players
         self.sheet = sheet
+        self.archive_sheet = archive_sheet
 
         self.date = discord.ui.TextInput(label="Date", placeholder="MM/DD", required=True)
         self.time = discord.ui.TextInput(label="Time", placeholder="e.g., 7PM, 8PM", required=True)
@@ -27,28 +28,24 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
         self.add_item(self.enemy_team)
 
     async def on_submit(self, interaction: discord.Interaction):
-        import traceback
         await interaction.response.defer(ephemeral=True)
-        print("↪️ Modal submitted")
         try:
-            print("🔍 Getting channel...")
             channel = interaction.guild.get_channel(1360237474454175814)
             if not channel:
                 await interaction.followup.send("❌ Could not find the match schedule channel.", ephemeral=True)
                 return
 
-            print("🔍 Getting emoji...")
             emoji = discord.utils.get(interaction.guild.emojis, name="AOSgold")
             emoji_str = f"<:{emoji.name}:{emoji.id}>" if emoji else "🟡"
 
-            print("🔍 Getting role mention...")
             role_name = "Capo" if self.league == "HC" else "Soldier"
             role = discord.utils.get(interaction.guild.roles, name=role_name)
             role_mention = role.mention if role else f"@{role_name}"
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Get the current highest Match ID and increment it
+            archive_ids = self.archive_sheet.col_values(9)[1:]  # Skip header
+            last_id = max([int(i) for i in archive_ids if i.isdigit()] or [0])
             match_id = last_id + 1
 
             message = (
@@ -59,8 +56,7 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             sent_msg = await channel.send(message)
             await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
 
-            print("📥 Appending to matches...")
-            self.sheet.append_row([
+            new_row = [
                 timestamp,
                 str(interaction.user),
                 self.date.value,
@@ -72,13 +68,13 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
                 match_id,
                 str(sent_msg.id),
                 str(sent_msg.channel.id)
-            ])
+            ]
+
+            self.sheet.append_row(new_row)
+            self.archive_sheet.append_row(new_row)
+
         except Exception as e:
-            traceback_text = traceback.format_exc()
-            await interaction.followup.send(f"❌ Match submission failed:\n```{traceback_text}```", ephemeral=True)
-            print(traceback_text)
-            if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ Failed to schedule match: {e}", ephemeral=True)
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 class MatchScheduler(commands.Cog):
     def __init__(self, bot):
@@ -90,6 +86,7 @@ class MatchScheduler(commands.Cog):
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
         self.client = gspread.authorize(creds)
         self.sheet = self.client.open("AOS").worksheet("matches")
+        self.archive_sheet = self.client.open("AOS").worksheet("matcharchive")
 
     @app_commands.command(name="schedulematch", description="Schedule a match and notify the team.")
     @app_commands.choices(
@@ -119,8 +116,7 @@ class MatchScheduler(commands.Cog):
         match_type: app_commands.Choice[str],
         players: app_commands.Choice[str]
     ):
-        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, players.value, self.sheet))
+        await interaction.response.send_modal(MatchScheduleModal(league.value, match_type.value, players.value, self.sheet, self.archive_sheet))
 
-# Setup
 async def setup(bot):
     await bot.add_cog(MatchScheduler(bot))
