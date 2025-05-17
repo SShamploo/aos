@@ -43,7 +43,10 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Get the current highest Match ID and increment it
+            # Use matcharchive to determine next Match ID
+            archive_sheet = self.sheet.spreadsheet.worksheet("matcharchive")
+            archive_ids = archive_sheet.col_values(9)[1:]  # Skip header
+            match_id = max([int(i) for i in archive_ids if i.isdigit()] or [0]) + 1
             meta_sheet = self.sheet.spreadsheet.worksheet("meta")
             last_id = int(meta_sheet.acell("A2").value or 0)
             match_id = last_id + 1
@@ -58,6 +61,20 @@ class MatchScheduleModal(discord.ui.Modal, title="📆 Schedule a Match"):
             await interaction.followup.send("✅ Match scheduled successfully!", ephemeral=True)
 
             self.sheet.append_row([
+                timestamp,
+                str(interaction.user),
+                self.date.value,
+                self.time.value,
+                self.enemy_team.value,
+                self.league,
+                self.match_type,
+                self.players,
+                match_id,
+                str(sent_msg.id),
+                str(sent_msg.channel.id)
+            ])
+
+            archive_sheet.append_row([
                 timestamp,
                 str(interaction.user),
                 self.date.value,
