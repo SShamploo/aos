@@ -14,7 +14,15 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
         super().__init__()
         self.giveaway_sheet = giveaway_sheet
 
-        self.top_frag = discord.ui.TextInput(label="Top Frag:", required=False, placeholder="Enter a number")
+        self.top_frag = discord.ui.Select(
+            placeholder="Top Frag?",
+            options=[
+                discord.SelectOption(label="Yes", value="yes"),
+                discord.SelectOption(label="No", value="no")
+            ],
+            min_values=1,
+            max_values=1
+        )
         self.execution = discord.ui.TextInput(label="Execution:", required=False, placeholder="Enter a number")
 
         self.add_item(self.top_frag)
@@ -24,7 +32,7 @@ class GiveawayModal(discord.ui.Modal, title="GIVEAWAY ENTRIES"):
         try:
             username = interaction.user.name
             user_mention = interaction.user.mention
-            top_frag_value = int(self.top_frag.value.strip()) if self.top_frag.value.strip() else 0
+            top_frag_value = 1 if self.top_frag.values[0] == "yes" else 0
             execution_value = int(self.execution.value.strip()) if self.execution.value.strip() else 0
 
             existing_rows = self.giveaway_sheet.get_all_values()
@@ -128,7 +136,9 @@ class GiveawayForm(commands.Cog):
                         lines.append(f"<a:WhiteCrown:1353482417893277759> **#{i+1} {user}**")
                     else:
                         lines.append(f"**#{i+1} {user}**")
-                return "\n\n".join(lines)
+                return "
+
+".join(lines)
 
             frag_column = format_column("Top Frags", top_frags, "<:CronusZen:1373022628146843671>")
             react_column = format_column("Top Reactions", top_reactions, "🔁")
