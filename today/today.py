@@ -29,19 +29,15 @@ class Today(commands.Cog):
 
         user_records = self.users_sheet.get_all_values()[1:]
         user_lookup = {}
+        user_lookup = {}
         for row in user_records:
             if len(row) >= 3:
                 username, servername, userid = row[0], row[1], row[2]
                 mention = f"<@{userid}>"
                 user_lookup[username.lower()] = mention
                 user_lookup[servername.lower()] = mention
-            for row in user_records:
+            if len(row) >= 3:
                 if len(row) >= 3:
-                username, servername, userid = row[0], row[1], row[2]
-                mention = f"<@{userid}>"
-                user_lookup[username.lower()] = mention
-                user_lookup[servername.lower()] = mention
-                    if user_id:
 
         members = await interaction.guild.fetch_members().flatten()
 
@@ -74,7 +70,6 @@ class Today(commands.Cog):
 
                     role_name = "Capo" if league == "HC" else "Soldier"
                     role = discord.utils.get(interaction.guild.roles, name=role_name)
-                    role_mention = role.mention if role else f"@{role_name}"
                     match_line = (
                         f"# {emoji_map['AOSgold']} {matching_match[2]} | {matching_match[3]} | {matching_match[4]} | "
                         f"{matching_match[5]} | {matching_match[6]} | ID: {matching_match[8]} {role_mention}"
@@ -102,7 +97,6 @@ class Today(commands.Cog):
                 frags = int(row[1]) if row[1].isdigit() else 0
                 reactions = int(row[2]) if row[2].isdigit() else 0
                 executions = int(row[3]) if row[3].isdigit() else 0
-                leaderboard_data.append((username, frags, reactions, executions))
 
             top_frags = sorted(leaderboard_data, key=lambda x: x[1], reverse=True)[:10]
             top_reactions = sorted(leaderboard_data, key=lambda x: x[2], reverse=True)[:10]
