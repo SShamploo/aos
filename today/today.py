@@ -131,11 +131,11 @@ class Today(commands.Cog):
             await interaction.channel.send(embed=embed)
 
         except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(tb)
-        await interaction.followup.send(f'❌ Error: {e}
-```{tb}```', ephemeral=True)
+            import traceback
+            tb = traceback.format_exc()
+            print(tb)
+            await interaction.followup.send(f"""❌ Error: {e}
+```{tb}```""", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Today(bot))
